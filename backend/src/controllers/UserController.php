@@ -124,4 +124,61 @@ class UserController {
         }
         return ['success' => false, 'message' => 'Failed to delete setting'];
     }
+
+    // Assign class teacher privilege and class
+    public static function assignClassTeacher($user_id, $class_id) {
+        global $conn;
+        // Check user exists and is a teacher
+        $stmt = $conn->prepare('SELECT id FROM users WHERE id = ? AND role = "teacher"');
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows === 0) {
+            return ['success' => false, 'message' => 'User not found or not a teacher'];
+        }
+        // Assign privilege and class
+        $stmt = $conn->prepare('UPDATE users SET is_class_teacher = 1, class_teacher_of = ? WHERE id = ?');
+        $stmt->bind_param('ii', $class_id, $user_id);
+        if ($stmt->execute()) {
+            return ['success' => true, 'message' => 'Class teacher assigned'];
+        }
+        return ['success' => false, 'message' => 'Failed to assign class teacher'];
+    }
+
+    // Remove class teacher privilege
+    public static function removeClassTeacher($user_id) {
+        global $conn;
+        $stmt = $conn->prepare('UPDATE users SET is_class_teacher = 0, class_teacher_of = NULL WHERE id = ?');
+        $stmt->bind_param('i', $user_id);
+        if ($stmt->execute()) {
+            return ['success' => true, 'message' => 'Class teacher privilege removed'];
+        }
+        return ['success' => false, 'message' => 'Failed to remove class teacher privilege'];
+    }
+
+    // List all class teachers and their classes
+    public static function getClassTeachers() {
+        global $conn;
+        $stmt = $conn->prepare('SELECT id, name, email, class_teacher_of FROM users WHERE is_class_teacher = 1');
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $teachers = [];
+        while ($row = $result->fetch_assoc()) {
+            $teachers[] = $row;
+        }
+        return ['success' => true, 'class_teachers' => $teachers];
+    }
+
+    // Get the class a class teacher is assigned to
+    public static function getClassTeacherClass($user_id) {
+        global $conn;
+        $stmt = $conn->prepare('SELECT class_teacher_of FROM users WHERE id = ? AND is_class_teacher = 1');
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            return ['success' => true, 'class_id' => $row['class_teacher_of']];
+        }
+        return ['success' => false, 'message' => 'User is not a class teacher or not found'];
+    }
 } 

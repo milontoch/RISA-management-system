@@ -650,6 +650,41 @@ if (strpos($uri, '/users') !== false) {
         exit;
     }
 }
+// Assign class teacher privilege (admin only)
+if (strpos($uri, '/users/assign-class-teacher') !== false && $method === 'POST') {
+    requireAdmin();
+    $data = json_decode(file_get_contents('php://input'), true);
+    $user_id = $data['user_id'] ?? 0;
+    $class_id = $data['class_id'] ?? 0;
+    echo json_encode(UserController::assignClassTeacher($user_id, $class_id));
+    exit;
+}
+// Remove class teacher privilege (admin only)
+if (strpos($uri, '/users/remove-class-teacher') !== false && $method === 'POST') {
+    requireAdmin();
+    $data = json_decode(file_get_contents('php://input'), true);
+    $user_id = $data['user_id'] ?? 0;
+    echo json_encode(UserController::removeClassTeacher($user_id));
+    exit;
+}
+// List all class teachers (admin only)
+if (strpos($uri, '/users/class-teachers') !== false && $method === 'GET') {
+    requireAdmin();
+    echo json_encode(UserController::getClassTeachers());
+    exit;
+}
+// Get the class a class teacher is assigned to (admin, teacher, or self)
+if (strpos($uri, '/users/class-teacher-class') !== false && $method === 'GET') {
+    $user_id = $_GET['user_id'] ?? 0;
+    // Only allow admin, teacher, or self
+    if (!Auth::isAdmin() && !Auth::isTeacher() && (!isset($_SESSION['user']) || $_SESSION['user']['id'] != $user_id)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied']);
+        exit;
+    }
+    echo json_encode(UserController::getClassTeacherClass($user_id));
+    exit;
+}
 // User profile endpoints
 if (strpos($uri, '/profile') !== false) {
     if ($method === 'GET') {
@@ -983,5 +1018,28 @@ if (strpos($uri, '/dashboard/parent') !== false && $method === 'GET') {
     }
     $parent_id = $_GET['parent_id'] ?? 0;
     echo json_encode(DashboardController::getParentDashboard($parent_id));
+    exit;
+} 
+// Check if morning attendance is done for a class (admin, teacher, or class teacher)
+if (strpos($uri, '/attendance/is-morning-done') !== false && $method === 'GET') {
+    $class_id = $_GET['class_id'] ?? 0;
+    $date = $_GET['date'] ?? null;
+    if (!Auth::isAdmin() && !Auth::isTeacher()) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied']);
+        exit;
+    }
+    echo json_encode(AttendanceController::isMorningAttendanceDone($class_id, $date));
+    exit;
+}
+// List classes for a teacher/class teacher/admin
+if (strpos($uri, '/attendance/classes-for-teacher') !== false && $method === 'GET') {
+    $user_id = $_GET['user_id'] ?? 0;
+    if (!Auth::isAdmin() && !Auth::isTeacher() && (!isset($_SESSION['user']) || $_SESSION['user']['id'] != $user_id)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied']);
+        exit;
+    }
+    echo json_encode(AttendanceController::getClassesForTeacher($user_id));
     exit;
 } 

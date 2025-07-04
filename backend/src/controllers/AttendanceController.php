@@ -160,4 +160,87 @@ class AttendanceController {
             return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
         }
     }
+
+    // Check if morning attendance is done for a class (all students have attendance for the date)
+    public static function isMorningAttendanceDone($class_id, $date = null) {
+        global $conn;
+        if (!is_numeric($class_id)) {
+            return ['success' => false, 'message' => 'Invalid class ID'];
+        }
+        if (!$date) {
+            $date = date('Y-m-d');
+        }
+        // Count students in class
+        $stmt = $conn->prepare('SELECT COUNT(*) as total FROM students WHERE class_id = ?');
+        $stmt->bind_param('i', $class_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $total_students = $row ? (int)$row['total'] : 0;
+        if ($total_students === 0) {
+            return ['success' => false, 'message' => 'No students in class'];
+        }
+        // Count attendance records for the date
+        $stmt = $conn->prepare('SELECT COUNT(DISTINCT a.student_id) as attended FROM attendance a LEFT JOIN students s ON a.student_id = s.id WHERE s.class_id = ? AND a.date = ?');
+        $stmt->bind_param('is', $class_id, $date);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $attended = $row ? (int)$row['attended'] : 0;
+        $done = ($attended >= $total_students);
+        return ['success' => true, 'done' => $done, 'attended' => $attended, 'total_students' => $total_students];
+    }
+
+    // List classes for a teacher/class teacher/admin
+    public static function getClassesForTeacher($user_id) {
+        global $conn;
+        // Get user info
+        $stmt = $conn->prepare('SELECT id, role, is_class_teacher, class_teacher_of FROM users WHERE id = ?');
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $user = $stmt->get_result()->fetch_assoc();
+        if (!$user) {
+            return ['success' => false, 'message' => 'User not found'];
+        }
+        if ($user['role'] === 'admin') {
+            // Admin: all classes
+            $result = $conn->query('SELECT id, name FROM classes');
+            $classes = [];
+            while ($row = $result->fetch_assoc()) {
+                $classes[] = $row;
+            }
+            return ['success' => true, 'classes' => $classes];
+        } elseif ($user['is_class_teacher'] && $user['class_teacher_of']) {
+            // Class teacher: their class
+            $stmt = $conn->prepare('SELECT id, name FROM classes WHERE id = ?');
+            $stmt->bind_param('i', $user['class_teacher_of']);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $classes = [];
+            while ($row = $result->fetch_assoc()) {
+                $classes[] = $row;
+            }
+            return ['success' => true, 'classes' => $classes];
+        } elseif ($user['role'] === 'teacher') {
+            // Subject teacher: classes from timetable
+            $stmt = $conn->prepare('SELECT t.id FROM teachers t WHERE t.user_id = ?');
+            $stmt->bind_param('i', $user_id);
+            $stmt->execute();
+            $teacher = $stmt->get_result()->fetch_assoc();
+            if (!$teacher) {
+                return ['success' => false, 'message' => 'Teacher record not found'];
+            }
+            $teacher_id = $teacher['id'];
+            $stmt = $conn->prepare('SELECT DISTINCT c.id, c.name FROM timetable tt LEFT JOIN classes c ON tt.class_id = c.id WHERE tt.teacher_id = ?');
+            $stmt->bind_param('i', $teacher_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $classes = [];
+            while ($row = $result->fetch_assoc()) {
+                $classes[] = $row;
+            }
+            return ['success' => true, 'classes' => $classes];
+        }
+        return ['success' => false, 'message' => 'User is not a teacher or admin'];
+    }
 } 

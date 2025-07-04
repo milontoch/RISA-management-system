@@ -6,7 +6,10 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     role ENUM('admin', 'teacher', 'student', 'parent') NOT NULL,
     profile_picture VARCHAR(255), -- Optional profile picture path
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    is_class_teacher BOOLEAN NOT NULL DEFAULT 0, -- Class teacher privilege
+    class_teacher_of INT DEFAULT NULL, -- Class ID if class teacher
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (class_teacher_of) REFERENCES classes(id) ON DELETE SET NULL
 );
 
 -- Classes table
