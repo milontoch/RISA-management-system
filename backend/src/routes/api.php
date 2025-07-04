@@ -478,7 +478,7 @@ if (strpos($uri, '/results') !== false) {
         }
         // Get results by student
         if (isset($_GET['student_id'])) {
-            echo json_encode(ResultController::getResultsByStudent($_GET['student_id']));
+        echo json_encode(ResultController::getResultsByStudent($_GET['student_id']));
             exit;
         }
         // Get results by exam

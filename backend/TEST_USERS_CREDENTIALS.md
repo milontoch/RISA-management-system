@@ -70,3 +70,9 @@ This file contains all the test user credentials for the RISA Management System.
 - Some existing users may have different password hashing
 - Use these credentials to test different user roles and permissions
 - The `/users` endpoint requires admin authentication to view all users 
+
+## Admin token 
+53f64690b4fdb0c424a54ab9ac35cb4
+
+## Teacher token 
+b53361e69b201214b6569a4fdee87f60

@@ -102,10 +102,10 @@ class TeacherController {
                     return ['success' => false, 'message' => 'Invalid subject ID: ' . $subject_id];
                 }
                 
-                $subject_check = $conn->prepare("SELECT id FROM subjects WHERE id = ?");
-                $subject_check->bind_param("i", $subject_id);
-                $subject_check->execute();
-                if ($subject_check->get_result()->num_rows === 0) {
+            $subject_check = $conn->prepare("SELECT id FROM subjects WHERE id = ?");
+            $subject_check->bind_param("i", $subject_id);
+            $subject_check->execute();
+            if ($subject_check->get_result()->num_rows === 0) {
                     return ['success' => false, 'message' => 'Subject not found: ' . $subject_id];
                 }
             }
@@ -183,12 +183,12 @@ class TeacherController {
                     return ['success' => false, 'message' => 'Invalid subject ID: ' . $subject_id];
                 }
                 
-                $subject_check = $conn->prepare("SELECT id FROM subjects WHERE id = ?");
-                $subject_check->bind_param("i", $subject_id);
-                $subject_check->execute();
-                if ($subject_check->get_result()->num_rows === 0) {
+            $subject_check = $conn->prepare("SELECT id FROM subjects WHERE id = ?");
+            $subject_check->bind_param("i", $subject_id);
+            $subject_check->execute();
+            if ($subject_check->get_result()->num_rows === 0) {
                     return ['success' => false, 'message' => 'Subject not found: ' . $subject_id];
-                }
+            }
             }
             
             // Start transaction
@@ -205,7 +205,7 @@ class TeacherController {
                 $sql = "INSERT INTO teacher_subjects (teacher_id, subject_id) VALUES (?, ?)";
                 $stmt = $conn->prepare($sql);
                 $stmt->bind_param("ii", $id, $subject_id);
-                
+            
                 if (!$stmt->execute()) {
                     $conn->rollback();
                     return ['success' => false, 'message' => 'Failed to assign subject: ' . $conn->error];
