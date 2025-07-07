@@ -160,37 +160,39 @@ export default function UsersPage() {
           ) : students.length === 0 ? (
             <div className="text-gray-500">No students found.</div>
           ) : (
-            <table className="min-w-full text-left">
-              <thead>
-                <tr className="border-b">
-                  <th className="py-2 px-3">Name</th>
-                  <th className="py-2 px-3">Email</th>
-                  <th className="py-2 px-3">Class</th>
-                  <th className="py-2 px-3">Section</th>
-                  <th className="py-2 px-3">Roll No.</th>
-                  <th className="py-2 px-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((s) => (
-                  <tr key={s.id} className="border-b hover:bg-gray-50">
-                    <td className="py-2 px-3">{s.name}</td>
-                    <td className="py-2 px-3">{s.email}</td>
-                    <td className="py-2 px-3">{s.class_id || '-'}</td>
-                    <td className="py-2 px-3">{s.section_id || '-'}</td>
-                    <td className="py-2 px-3">{s.roll_number || '-'}</td>
-                    <td className="py-2 px-3">
-                      <button className="text-blue-600 hover:underline mr-2" onClick={() => openView(s)}>View</button>
-                      <button className="text-green-600 hover:underline mr-2" onClick={() => openEdit(s)}>Edit</button>
-                      <button className="text-red-600 hover:underline" onClick={() => setShowDelete(s)}>Delete</button>
-                    </td>
+            <div className="table-responsive">
+              <table className="min-w-full text-left">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-2 px-3">Name</th>
+                    <th className="py-2 px-3">Email</th>
+                    <th className="py-2 px-3">Class</th>
+                    <th className="py-2 px-3">Section</th>
+                    <th className="py-2 px-3">Roll No.</th>
+                    <th className="py-2 px-3">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {students.map((s) => (
+                    <tr key={s.id} className="border-b hover:bg-gray-50">
+                      <td className="py-2 px-3">{s.name}</td>
+                      <td className="py-2 px-3">{s.email}</td>
+                      <td className="py-2 px-3">{s.class_id || '-'}</td>
+                      <td className="py-2 px-3">{s.section_id || '-'}</td>
+                      <td className="py-2 px-3">{s.roll_number || '-'}</td>
+                      <td className="py-2 px-3">
+                        <button className="text-blue-600 hover:underline mr-2" onClick={() => openView(s)}>View</button>
+                        <button className="text-green-600 hover:underline mr-2" onClick={() => openEdit(s)}>Edit</button>
+                        <button className="text-red-600 hover:underline" onClick={() => setShowDelete(s)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
-        <button className="mt-4 bg-blue-600 text-white px-4 py-2 rounded shadow" onClick={() => { setShowAdd(true); setForm({ name: '', email: '', password: '', class_id: '', section_id: '', roll_number: '' }); }}>Add Student</button>
+        <button className="mt-4 bg-blue-600 text-white px-4 py-2 rounded shadow button-touch" onClick={() => { setShowAdd(true); setForm({ name: '', email: '', password: '', class_id: '', section_id: '', roll_number: '' }); }}>Add Student</button>
       </div>
       {/* Add Student Form */}
       {showAdd && (

@@ -12,6 +12,7 @@ const roleConfigs = {
       { label: 'Subjects', to: '/subjects' },
       { label: 'Reports', to: '/reports' },
       { label: 'Attendance', to: '/attendance' }, // Added attendance link
+      { label: 'Timetable', to: '/timetable' }, // Added timetable link
     ],
     summary: [
       { label: 'Total Users', value: '...' },
@@ -138,7 +139,7 @@ export default function Dashboard() {
                 <>
                   <div className="text-2xl font-bold text-yellow-700 mb-2">🗓️ Morning Attendance Required</div>
                   <div className="text-gray-700 mb-4">You have not yet submitted attendance for your class today.</div>
-                  <button onClick={() => navigate(`/attendance?class_id=${classInfo}`)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded font-semibold shadow">Take Morning Attendance</button>
+                  <button onClick={() => navigate(`/attendance?class_id=${classInfo}`)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded font-semibold shadow button-touch">Take Morning Attendance</button>
                 </>
               )}
             </div>

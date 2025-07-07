@@ -40,3 +40,36 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Responsive table wrapper */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Touch-friendly buttons */
+.button-touch {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.75rem 1.25rem;
+  font-size: 1rem;
+}
+
+/* Mobile-friendly form fields */
+.input-mobile {
+  font-size: 1rem;
+  padding: 0.75rem 1rem;
+  min-height: 44px;
+}
+
+/* Mobile spacing */
+@media (max-width: 640px) {
+  .p-8 { padding: 1rem !important; }
+  .mb-8 { margin-bottom: 1.5rem !important; }
+  .max-w-4xl, .max-w-3xl, .max-w-2xl { max-width: 100% !important; }
+  .text-2xl { font-size: 1.5rem !important; }
+  .text-lg { font-size: 1.125rem !important; }
+  .text-xl { font-size: 1.25rem !important; }
+  th, td { padding: 0.5rem !important; }
+}
