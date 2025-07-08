@@ -14,6 +14,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+// Simple health check for Railway
+if ($_SERVER['REQUEST_URI'] === '/' || $_SERVER['REQUEST_URI'] === '/health') {
+    header('Content-Type: application/json');
+    echo json_encode([
+        'status' => 'healthy',
+        'timestamp' => date('Y-m-d H:i:s'),
+        'service' => 'RISA Management System Backend',
+        'version' => '1.0.0',
+        'environment' => $_ENV['APP_ENV'] ?? 'production'
+    ]);
+    exit;
+}
+
 // Set JSON content type
 header('Content-Type: application/json');
 
