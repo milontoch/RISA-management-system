@@ -1,14 +1,21 @@
 <?php
-echo "<h1>RISA Management System - Backend Test</h1>";
-echo "<p>PHP server is working correctly!</p>";
-echo "<p>Current time: " . date('Y-m-d H:i:s') . "</p>";
-echo "<p>Request URI: " . $_SERVER['REQUEST_URI'] . "</p>";
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 
-echo "<h2>Test Endpoints:</h2>";
-echo "<ul>";
-echo "<li><a href='/health.php'>Health Check</a></li>";
-echo "<li><a href='/api/health'>API Health</a></li>";
-echo "<li><a href='/api/test-env'>Environment Test</a></li>";
-echo "<li><a href='/'>Root Page</a></li>";
-echo "</ul>";
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0);
+}
+
+echo json_encode([
+    'status' => 'success',
+    'message' => 'Test endpoint working!',
+    'timestamp' => date('Y-m-d H:i:s'),
+    'server_info' => [
+        'php_version' => PHP_VERSION,
+        'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
+        'request_uri' => $_SERVER['REQUEST_URI'] ?? 'Unknown'
+    ]
+]);
 ?> 
