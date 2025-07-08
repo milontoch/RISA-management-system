@@ -20,6 +20,9 @@ require_once __DIR__ . '/../controllers/DocumentController.php';
 require_once __DIR__ . '/../controllers/DashboardController.php';
 require_once __DIR__ . '/../utils/Auth.php';
 
+// Include test routes
+require_once __DIR__ . '/test.php';
+
 function requireAdmin() {
     if (!Auth::isAdmin()) {
         http_response_code(403);

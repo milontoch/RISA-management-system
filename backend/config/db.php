@@ -1,12 +1,12 @@
 <?php
-// Database configuration
-$host = 'localhost';
-$dbname = 'school_management';
-$username = 'root';
-$password = '';
+// Include configuration
+require_once __DIR__ . '/config.php';
+
+// Get database configuration
+$dbConfig = Config::getDatabaseConfig();
 
 // Create MySQL connection
-$conn = new mysqli($host, $username, $password, $dbname);
+$conn = new mysqli($dbConfig['host'], $dbConfig['username'], $dbConfig['password'], $dbConfig['dbname']);
 
 // Check connection
 if ($conn->connect_error) {
