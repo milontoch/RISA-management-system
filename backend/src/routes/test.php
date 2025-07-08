@@ -61,25 +61,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $_SERVER['REQUEST_URI'] === '/api/te
     exit;
 }
 
-// Health check endpoint
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && $_SERVER['REQUEST_URI'] === '/api/health') {
-    header('Content-Type: application/json');
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type');
-    
-    // Handle preflight requests
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        http_response_code(200);
-        exit;
-    }
-    
-    echo json_encode([
-        'status' => 'healthy',
-        'timestamp' => date('Y-m-d H:i:s'),
-        'app' => Config::get('APP_NAME'),
-        'version' => '1.0.0',
-        'endpoint' => '/api/health'
-    ]);
-    exit;
-} 
+// Health check endpoint - now handled in main index.php
+// This file is kept for other test endpoints 
