@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import apiService from './services/api';
 
 const AuthContext = createContext();
 
@@ -20,8 +21,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (token) {
       localStorage.setItem('token', token);
+      apiService.setToken(token);
     } else {
       localStorage.removeItem('token');
+      apiService.setToken(null);
     }
   }, [token]);
 
@@ -30,9 +33,19 @@ export function AuthProvider({ children }) {
     setToken(token);
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
+  const logout = async () => {
+    try {
+      // Call logout API if token exists
+      if (token) {
+        await apiService.logout();
+      }
+    } catch (error) {
+      console.error('Logout API error:', error);
+    } finally {
+      // Clear local state regardless of API call success
+      setUser(null);
+      setToken(null);
+    }
   };
 
   return (

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from './auth.jsx';
+import apiService from './services/api';
 
 const roleConfigs = {
   admin: {
@@ -10,9 +11,12 @@ const roleConfigs = {
       { label: 'Manage Users', to: '/users' },
       { label: 'Classes', to: '/classes' },
       { label: 'Subjects', to: '/subjects' },
+      { label: 'Teachers', to: '/teachers' },
+      { label: 'Students', to: '/students' },
+      { label: 'Exams', to: '/exams' },
       { label: 'Reports', to: '/reports' },
-      { label: 'Attendance', to: '/attendance' }, // Added attendance link
-      { label: 'Timetable', to: '/timetable' }, // Added timetable link
+      { label: 'Attendance', to: '/attendance' },
+      { label: 'Timetable', to: '/timetable' },
     ],
     summary: [
       { label: 'Total Users', value: '...' },
@@ -25,6 +29,7 @@ const roleConfigs = {
     header: 'Teacher Dashboard',
     nav: [
       { label: 'My Classes', to: '/my-classes' },
+      { label: 'My Subjects', to: '/my-subjects' },
       { label: 'Attendance', to: '/attendance' },
       { label: 'Exams', to: '/exams' },
       { label: 'Results', to: '/results' },
@@ -32,7 +37,8 @@ const roleConfigs = {
     ],
     summary: [
       { label: 'My Classes', value: '...' },
-      { label: 'Pending Attendance', value: '...' },
+      { label: 'My Subjects', value: '...' },
+      { label: 'Total Students', value: '...' },
     ],
   },
   student: {
@@ -68,43 +74,41 @@ const roleConfigs = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [attendanceStatus, setAttendanceStatus] = useState(null);
-  const [classInfo, setClassInfo] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    async function fetchAttendanceStatus() {
-      if (user && user.is_class_teacher) {
+    async function fetchDashboardData() {
+      if (user) {
         setLoading(true);
-        // 1. Get assigned class
-        const res1 = await fetch(`/api/users/class-teacher-class?user_id=${user.id}`);
-        const data1 = await res1.json();
-        if (data1.success && data1.class_id) {
-          setClassInfo(data1.class_id);
-          // 2. Check attendance status
-          const today = new Date().toISOString().slice(0, 10);
-          const res2 = await fetch(`/api/attendance/is-morning-done?class_id=${data1.class_id}&date=${today}`);
-          const data2 = await res2.json();
-          setAttendanceStatus(data2);
+        try {
+          const data = await apiService.getDashboard();
+          if (data.success) {
+            setDashboardData(data.data);
+          }
+        } catch (err) {
+          setError('Failed to load dashboard data');
+          console.error('Dashboard error:', err);
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
       }
     }
-    fetchAttendanceStatus();
+    fetchDashboardData();
   }, [user]);
 
   if (!user) {
     navigate('/login');
     return null;
   }
+
   const config = roleConfigs[user.role] || roleConfigs['student'];
+  
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
-
-  // Attendance card for class teacher
-  const showAttendanceCard = user.is_class_teacher && classInfo;
 
   return (
     <div className={`min-h-screen flex flex-col bg-gray-50 ${config.color}/10`}>
@@ -117,43 +121,82 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
-      <nav className="bg-white shadow flex gap-4 px-4 py-3 border-b">
+      
+      <nav className="bg-white shadow flex gap-4 px-4 py-3 border-b overflow-x-auto">
         {config.nav.map(link => (
-          <Link key={link.to} to={link.to} className="text-blue-700 hover:underline font-medium">
+          <Link key={link.to} to={link.to} className="text-blue-700 hover:underline font-medium whitespace-nowrap">
             {link.label}
           </Link>
         ))}
       </nav>
+      
       <main className="flex-1 container mx-auto px-4 py-8">
-        {showAttendanceCard && (
-          <div className="mb-8 flex justify-center">
-            <div className={`rounded shadow-lg p-6 w-full max-w-xl text-center border-2 ${attendanceStatus && attendanceStatus.done ? 'border-green-400 bg-green-50' : 'border-yellow-400 bg-yellow-50'}`}>
-              {loading ? (
-                <div className="text-gray-500">Checking attendance status...</div>
-              ) : attendanceStatus && attendanceStatus.done ? (
-                <>
-                  <div className="text-2xl font-bold text-green-700 mb-2">✅ Attendance complete for today!</div>
-                  <div className="text-gray-700">You have submitted attendance for your class.</div>
-                </>
-              ) : (
-                <>
-                  <div className="text-2xl font-bold text-yellow-700 mb-2">🗓️ Morning Attendance Required</div>
-                  <div className="text-gray-700 mb-4">You have not yet submitted attendance for your class today.</div>
-                  <button onClick={() => navigate(`/attendance?class_id=${classInfo}`)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded font-semibold shadow button-touch">Take Morning Attendance</button>
-                </>
-              )}
-            </div>
+        {error && (
+          <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {config.summary.map((item, i) => (
-            <div key={i} className="bg-white rounded shadow p-6 text-center">
-              <div className="text-lg font-semibold mb-2">{item.label}</div>
-              <div className="text-2xl font-bold">{item.value}</div>
+        
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="text-gray-500">Loading dashboard...</div>
+          </div>
+        ) : (
+          <>
+            {/* Dashboard Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              {dashboardData && dashboardData.summary ? (
+                Object.entries(dashboardData.summary).map(([key, value]) => (
+                  <div key={key} className="bg-white rounded shadow p-6 text-center">
+                    <div className="text-lg font-semibold mb-2">{key.replace(/_/g, ' ').toUpperCase()}</div>
+                    <div className="text-2xl font-bold text-blue-600">{value}</div>
+                  </div>
+                ))
+              ) : (
+                config.summary.map((item, i) => (
+                  <div key={i} className="bg-white rounded shadow p-6 text-center">
+                    <div className="text-lg font-semibold mb-2">{item.label}</div>
+                    <div className="text-2xl font-bold text-gray-400">{item.value}</div>
+                  </div>
+                ))
+              )}
             </div>
-          ))}
-        </div>
-        <div className="text-gray-600 text-center">Welcome to your dashboard!</div>
+
+            {/* Recent Activity Section */}
+            {dashboardData && dashboardData.recent_activity && (
+              <div className="bg-white rounded shadow p-6 mb-8">
+                <h3 className="text-xl font-semibold mb-4">Recent Activity</h3>
+                <div className="space-y-3">
+                  {dashboardData.recent_activity.map((activity, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                      <div>
+                        <div className="font-medium">{activity.title}</div>
+                        <div className="text-sm text-gray-600">{activity.description}</div>
+                      </div>
+                      <div className="text-sm text-gray-500">{activity.time}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Actions */}
+            <div className="bg-white rounded shadow p-6">
+              <h3 className="text-xl font-semibold mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {config.nav.slice(0, 4).map(link => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 p-4 rounded text-center transition-colors"
+                  >
+                    <div className="font-medium">{link.label}</div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

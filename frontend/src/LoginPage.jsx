@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './auth';
-
-const BACKEND_URL = 'http://localhost/RISA%20management%20system/backend/public/index.php/login';
+import apiService from './services/api';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,21 +15,21 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
     try {
-      const res = await fetch(BACKEND_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
+      const data = await apiService.login(email, password);
+      
       if (data.success) {
-        login(data.user, data.token);
+        // Set the token in the API service
+        apiService.setToken(data.data.token);
+        // Login with user data and token
+        login(data.data.user, data.data.token);
         navigate('/dashboard');
       } else {
         setError(data.message || 'Login failed');
       }
     } catch (err) {
-      setError('Network error');
+      setError(err.message || 'Network error');
     } finally {
       setLoading(false);
     }
