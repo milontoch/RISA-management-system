@@ -1,8 +1,0 @@
-[phases.setup]
-nixPkgs = ["php", "php-extensions.mysqli", "php-extensions.pdo", "php-extensions.pdo_mysql"]
-
-[phases.install]
-cmds = ["echo 'PHP project - no build required'"]
-
-[start]
-cmd = "php -S 0.0.0.0:$PORT -t public" 
