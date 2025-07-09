@@ -3,10 +3,9 @@ const config = {
   // API Configuration
   api: {
     // Development - Laravel backend
-    baseURL: 'http://localhost/RISA%20management%20system/backend-laravel/public/api',
-    
-    // Production - Update this when deploying
-    // baseURL: 'https://your-domain.com/api',
+    baseURL: process.env.NODE_ENV === 'production' 
+      ? 'https://risa-management-backend-production.up.railway.app/api'
+      : 'http://localhost/RISA%20management%20system/backend-laravel/public/api',
   },
   
   // App Configuration

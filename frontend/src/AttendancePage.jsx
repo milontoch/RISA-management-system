@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from './auth.jsx';
+import apiService from './services/api';
 
 export default function AttendancePage() {
   const { user } = useAuth();
@@ -10,22 +11,24 @@ export default function AttendancePage() {
     async function fetchPendingAttendance() {
       if (user && user.role === 'admin') {
         setLoading(true);
-        // 1. Get all class teachers
-        const res1 = await fetch('/api/users/class-teachers');
-        const data1 = await res1.json();
-        if (data1.success && data1.class_teachers) {
-          const today = new Date().toISOString().slice(0, 10);
-          // 2. For each, check attendance
-          const pending = [];
-          for (const teacher of data1.class_teachers) {
-            if (!teacher.class_teacher_of) continue;
-            const res2 = await fetch(`/api/attendance/is-morning-done?class_id=${teacher.class_teacher_of}&date=${today}`);
-            const data2 = await res2.json();
-            if (!data2.done) {
-              pending.push({ name: teacher.name, email: teacher.email });
+        try {
+          // 1. Get all class teachers
+          const data1 = await apiService.getClassTeachers();
+          if (data1.success && data1.class_teachers) {
+            const today = new Date().toISOString().slice(0, 10);
+            // 2. For each, check attendance
+            const pending = [];
+            for (const teacher of data1.class_teachers) {
+              if (!teacher.class_teacher_of) continue;
+              const data2 = await apiService.getAttendanceByClassTeacher(teacher.class_teacher_of, today);
+              if (!data2.done) {
+                pending.push({ name: teacher.name, email: teacher.email });
+              }
             }
+            setPendingTeachers(pending);
           }
-          setPendingTeachers(pending);
+        } catch (err) {
+          console.error('Failed to fetch pending attendance:', err);
         }
         setLoading(false);
       }

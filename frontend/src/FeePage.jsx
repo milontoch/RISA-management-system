@@ -1,107 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from './auth';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from './auth.jsx';
+import apiService from './services/api';
 
 export default function FeePage() {
   const { user } = useAuth();
-  // State for fees
   const [fees, setFees] = useState([]);
-  const [loadingFees, setLoadingFees] = useState(true);
-  const [feesError, setFeesError] = useState(null);
-  const [payFeeId, setPayFeeId] = useState('');
-  const [payAmount, setPayAmount] = useState('');
-  const [manageForm, setManageForm] = useState({ student: '', amount: '', due_date: '' });
-  const [manageStatus, setManageStatus] = useState(null);
-  // Handler for paying a fee
-  const [payStatus, setPayStatus] = useState(null);
-  const handlePayFee = async (e) => {
-    e.preventDefault();
-    setPayStatus(null);
-    if (!payFeeId || !payAmount) {
-      setPayStatus({ type: 'error', message: 'Select a fee and enter amount.' });
-      return;
-    }
-    // Update fee status to 'paid' (mock: PUT /api/fees)
-    const res = await fetch('/api/fees', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: payFeeId, status: 'paid', amount: payAmount })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setPayStatus({ type: 'success', message: 'Fee paid successfully!' });
-      setPayFeeId('');
-      setPayAmount('');
-      // Optionally, refetch fees
-      if (user) {
-        let url = '/api/fees';
-        if (user.role === 'student') url += `?student_id=${user.id}`;
-        fetch(url)
-          .then(res => res.json())
-          .then(data => setFees(data.data || []));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState(null);
+  const [showDelete, setShowDelete] = useState(null);
+  const [form, setForm] = useState({ student_id: '', amount: '', due_date: '', description: '' });
+  const [formError, setFormError] = useState(null);
+  const [formLoading, setFormLoading] = useState(false);
+
+  // Fetch fees
+  const fetchFees = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiService.getFees();
+      if (data.success && data.fees) {
+        setFees(data.fees);
+      } else {
+        setError(data.message || 'Failed to fetch fees');
       }
-    } else {
-      setPayStatus({ type: 'error', message: data.message || 'Failed to pay fee.' });
+    } catch (err) {
+      setError('Network error');
     }
+    setLoading(false);
   };
 
-  // Handler for managing (creating) a fee
-  const handleManageFee = async (e) => {
+  useEffect(() => { fetchFees(); }, []);
+
+  // Add Fee
+  const handleAdd = async (e) => {
     e.preventDefault();
-    setManageStatus(null);
-    if (!manageForm.student || !manageForm.amount || !manageForm.due_date) {
-      setManageStatus('Fill all fields.');
-      return;
-    }
-    // Create fee (POST /api/fees)
-    const res = await fetch('/api/fees', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        student_name: manageForm.student,
-        amount: manageForm.amount,
-        due_date: manageForm.due_date,
-        status: 'unpaid',
-        created_by: user?.id
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setManageStatus('Fee added successfully!');
-      setManageForm({ student: '', amount: '', due_date: '' });
-      // Optionally, refetch fees
-      if (user) {
-        let url = '/api/fees';
-        if (user.role === 'student') url += `?student_id=${user.id}`;
-        fetch(url)
-          .then(res => res.json())
-          .then(data => setFees(data.data || []));
+    setFormError(null);
+    setFormLoading(true);
+    try {
+      const data = await apiService.createFee(form);
+      if (!data.success) {
+        setFormError(data.message || 'Failed to create fee');
+        setFormLoading(false);
+        return;
       }
-    } else {
-      setManageStatus(data.message || 'Failed to add fee.');
+      setShowAdd(false);
+      setForm({ student_id: '', amount: '', due_date: '', description: '' });
+      fetchFees();
+    } catch (err) {
+      setFormError('Network error');
     }
+    setFormLoading(false);
   };
 
-  // Fetch fees for current user (student/parent) on mount
-  useEffect(() => {
-    if (!user) return;
-    setLoadingFees(true);
-    setFeesError(null);
-    let url = '/api/fees';
-    if (user.role === 'student') {
-      url += `?student_id=${user.id}`;
+  // Edit Fee
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    setFormError(null);
+    setFormLoading(true);
+    try {
+      const data = await apiService.updateFee(showEdit.id, form);
+      if (!data.success) {
+        setFormError(data.message || 'Failed to update fee');
+        setFormLoading(false);
+        return;
+      }
+      setShowEdit(null);
+      setForm({ student_id: '', amount: '', due_date: '', description: '' });
+      fetchFees();
+    } catch (err) {
+      setFormError('Network error');
     }
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.data) {
-          setFees(data.data);
-        } else {
-          setFeesError(data.message || 'Failed to fetch fees');
-        }
-      })
-      .catch(() => setFeesError('Failed to fetch fees'))
-      .finally(() => setLoadingFees(false));
-  }, [user]);
+    setFormLoading(false);
+  };
+
+  // Delete Fee
+  const handleDelete = async () => {
+    if (!showDelete) return;
+    setFormLoading(true);
+    try {
+      await apiService.deleteFee(showDelete.id);
+      setShowDelete(null);
+      fetchFees();
+    } catch (err) {
+      console.error('Failed to delete fee:', err);
+    }
+    setFormLoading(false);
+  };
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -110,10 +96,10 @@ export default function FeePage() {
       <div className="mb-8">
         <h3 className="text-lg font-semibold mb-2">View Fees</h3>
         <div className="bg-white border rounded shadow p-4">
-          {loadingFees ? (
+          {loading ? (
             <div className="text-gray-500">Loading fees...</div>
-          ) : feesError ? (
-            <div className="text-red-600">{feesError}</div>
+          ) : error ? (
+            <div className="text-red-600">{error}</div>
           ) : (
             <div className="table-responsive">
               <table className="min-w-full text-sm">

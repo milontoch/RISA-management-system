@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import apiService from './services/api';
 
 export default function UsersPage() {
   const [students, setStudents] = useState([]);
@@ -19,8 +20,7 @@ export default function UsersPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/students');
-      const data = await res.json();
+      const data = await apiService.getStudents();
       if (data.success && data.users) {
         setStudents(data.users);
       } else {
@@ -34,19 +34,24 @@ export default function UsersPage() {
 
   // Fetch classes
   const fetchClasses = async () => {
-    const res = await fetch('/api/classes');
-    const data = await res.json();
-    if (data.success && data.data) setClasses(data.data);
+    try {
+      const data = await apiService.getClasses();
+      if (data.success && data.data) setClasses(data.data);
+    } catch (err) {
+      console.error('Failed to fetch classes:', err);
+    }
   };
 
   // Fetch sections (optionally by class)
   const fetchSections = async (class_id) => {
-    let url = '/api/sections';
-    if (class_id) url += `?class_id=${class_id}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.success && data.data) setSections(data.data);
-    else setSections([]);
+    try {
+      const data = await apiService.getSections(class_id);
+      if (data.success && data.data) setSections(data.data);
+      else setSections([]);
+    } catch (err) {
+      console.error('Failed to fetch sections:', err);
+      setSections([]);
+    }
   };
 
   useEffect(() => { fetchStudents(); fetchClasses(); }, []);
@@ -62,33 +67,32 @@ export default function UsersPage() {
     e.preventDefault();
     setFormError(null);
     setFormLoading(true);
-    // 1. Create user
-    const userRes = await fetch('/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: form.name, email: form.email, password: form.password, role: 'student' })
-    });
-    const userData = await userRes.json();
-    if (!userData.success || !userData.user_id) {
-      setFormError(userData.message || 'Failed to create user');
-      setFormLoading(false);
-      return;
+    try {
+      // 1. Create user
+      const userData = await apiService.register(form.name, form.email, form.password, 'student');
+      if (!userData.success || !userData.user_id) {
+        setFormError(userData.message || 'Failed to create user');
+        setFormLoading(false);
+        return;
+      }
+      // 2. Create student
+      const studentData = await apiService.createStudent({
+        user_id: userData.user_id,
+        class_id: form.class_id,
+        section_id: form.section_id,
+        roll_number: form.roll_number
+      });
+      if (!studentData.success) {
+        setFormError(studentData.message || 'Failed to create student');
+        setFormLoading(false);
+        return;
+      }
+      setShowAdd(false);
+      setForm({ name: '', email: '', password: '', class_id: '', section_id: '', roll_number: '' });
+      fetchStudents();
+    } catch (err) {
+      setFormError('Network error');
     }
-    // 2. Create student
-    const studentRes = await fetch('/api/students', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userData.user_id, class_id: form.class_id, section_id: form.section_id, roll_number: form.roll_number })
-    });
-    const studentData = await studentRes.json();
-    if (!studentData.success) {
-      setFormError(studentData.message || 'Failed to create student');
-      setFormLoading(false);
-      return;
-    }
-    setShowAdd(false);
-    setForm({ name: '', email: '', password: '', class_id: '', section_id: '', roll_number: '' });
-    fetchStudents();
     setFormLoading(false);
   };
 
@@ -97,20 +101,23 @@ export default function UsersPage() {
     e.preventDefault();
     setFormError(null);
     setFormLoading(true);
-    const res = await fetch('/api/students', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: showEdit.id, class_id: form.class_id, section_id: form.section_id, roll_number: form.roll_number })
-    });
-    const data = await res.json();
-    if (!data.success) {
-      setFormError(data.message || 'Failed to update student');
-      setFormLoading(false);
-      return;
+    try {
+      const data = await apiService.updateStudent(showEdit.id, {
+        class_id: form.class_id,
+        section_id: form.section_id,
+        roll_number: form.roll_number
+      });
+      if (!data.success) {
+        setFormError(data.message || 'Failed to update student');
+        setFormLoading(false);
+        return;
+      }
+      setShowEdit(null);
+      setForm({ name: '', email: '', password: '', class_id: '', section_id: '', roll_number: '' });
+      fetchStudents();
+    } catch (err) {
+      setFormError('Network error');
     }
-    setShowEdit(null);
-    setForm({ name: '', email: '', password: '', class_id: '', section_id: '', roll_number: '' });
-    fetchStudents();
     setFormLoading(false);
   };
 
@@ -118,14 +125,13 @@ export default function UsersPage() {
   const handleDelete = async () => {
     if (!showDelete) return;
     setFormLoading(true);
-    const res = await fetch('/api/students', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: showDelete.id })
-    });
-    const data = await res.json();
-    setShowDelete(null);
-    fetchStudents();
+    try {
+      await apiService.deleteStudent(showDelete.id);
+      setShowDelete(null);
+      fetchStudents();
+    } catch (err) {
+      console.error('Failed to delete student:', err);
+    }
     setFormLoading(false);
   };
 

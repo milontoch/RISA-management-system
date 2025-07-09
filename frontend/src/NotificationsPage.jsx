@@ -1,33 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from './auth';
+import { useAuth } from './auth.jsx';
+import apiService from './services/api';
 
 export default function NotificationsPage() {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState([
-    // Mock data for initial UI
-    { id: 1, message: 'Your fee payment is due soon.', date: '2024-06-01', read: false },
-    { id: 2, message: 'Exam schedule has been updated.', date: '2024-05-28', read: true },
-    { id: 3, message: 'New homework uploaded.', date: '2024-05-25', read: false },
-  ]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  // Fetch real notifications for the logged-in user
   useEffect(() => {
-    if (!user) return;
-    setLoading(true);
-    setError(null);
-    fetch(`/api/notifications?user_id=${user.id}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.data) {
-          setNotifications(data.data);
-        } else {
-          setError(data.message || 'Failed to fetch notifications');
+    async function fetchNotifications() {
+      if (user) {
+        setLoading(true);
+        try {
+          const data = await apiService.getNotifications({ user_id: user.id });
+          if (data.success && data.notifications) {
+            setNotifications(data.notifications);
+          }
+        } catch (err) {
+          console.error('Failed to fetch notifications:', err);
         }
-      })
-      .catch(() => setError('Failed to fetch notifications'))
-      .finally(() => setLoading(false));
+        setLoading(false);
+      }
+    }
+    fetchNotifications();
   }, [user]);
 
   return (
@@ -36,8 +31,6 @@ export default function NotificationsPage() {
       <div className="bg-white border rounded shadow p-4">
         {loading ? (
           <div className="text-gray-500">Loading notifications...</div>
-        ) : error ? (
-          <div className="text-red-600">{error}</div>
         ) : notifications.length === 0 ? (
           <div className="text-gray-500">No notifications found.</div>
         ) : (

@@ -1,271 +1,189 @@
 # RISA Management System - Deployment Guide
 
-## Environment Variables Setup
+This guide will help you deploy the RISA Management System to Railway (backend) and GitHub Pages (frontend).
 
-### Step 1: Local Development Setup
+## Prerequisites
 
-1. **Copy the example environment file:**
+1. **GitHub Account** - For hosting the repository and GitHub Pages
+2. **Railway Account** - For hosting the Laravel backend
+3. **Git** - For version control
+
+## Backend Deployment (Railway)
+
+### Step 1: Prepare the Backend
+
+1. **Push your code to GitHub** (if not already done):
    ```bash
-   cd backend
-   cp env.example .env
+   git add .
+   git commit -m "Prepare for deployment"
+   git push origin main
    ```
 
-2. **Edit the .env file with your local values:**
-   ```env
-   # Database Configuration (for local development)
-   DB_HOST=localhost
-   DB_NAME=school_management
-   DB_USERNAME=root
-   DB_PASSWORD=
+2. **Ensure these files are in your backend-laravel directory**:
+   - `railway.json` - Railway configuration
+   - `nixpacks.toml` - Build configuration
+   - `Procfile` - Process definition
+   - `.env` - Environment variables (will be overridden by Railway)
 
-   # Application Configuration
-   APP_NAME="RISA Management System"
-   APP_ENV=development
-   APP_DEBUG=true
-   APP_URL=http://localhost:8000
+### Step 2: Deploy to Railway
 
-   # Security Configuration (generate secure keys)
-   JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
-   SESSION_SECRET=your-session-secret-key-here-make-it-long-and-random
+1. **Go to [Railway.app](https://railway.app)** and sign in with GitHub
+2. **Create a new project**:
+   - Click "New Project"
+   - Select "Deploy from GitHub repo"
+   - Choose your repository
+   - Select the `backend-laravel` directory
 
-   # File Upload Configuration
-   UPLOAD_MAX_SIZE=10485760
-   ALLOWED_FILE_TYPES=jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx
+3. **Add a MySQL database**:
+   - In your Railway project, click "New"
+   - Select "Database" → "MySQL"
+   - Railway will automatically link it to your app
 
-   # Frontend URL (for CORS)
-   FRONTEND_URL=http://localhost:5173
+4. **Configure environment variables**:
+   - Go to your app's "Variables" tab
+   - Add these variables:
+     ```
+     DB_CONNECTION=mysql
+     DB_HOST=${MYSQL_HOST}
+     DB_PORT=${MYSQL_PORT}
+     DB_DATABASE=${MYSQLDATABASE}
+     DB_USERNAME=${MYSQLUSER}
+     DB_PASSWORD=${MYSQLPASSWORD}
+     APP_ENV=production
+     APP_DEBUG=false
+     APP_URL=https://your-railway-domain.up.railway.app
+     ```
 
-   # Timezone
-   TIMEZONE=UTC
+5. **Deploy**:
+   - Railway will automatically detect the Laravel app
+   - It will run the build commands from `nixpacks.toml`
+   - The app will be available at your Railway domain
+
+6. **Run migrations and seeders**:
+   - Go to your app's "Deployments" tab
+   - Click on the latest deployment
+   - Open the terminal and run:
+     ```bash
+     php artisan migrate --force
+     php artisan db:seed --class=AdminUserSeeder --force
+     ```
+
+### Step 3: Get Your Railway URL
+
+- Copy your Railway app URL (e.g., `https://risa-management-backend-production.up.railway.app`)
+- You'll need this for the frontend configuration
+
+## Frontend Deployment (GitHub Pages)
+
+### Step 1: Update Frontend Configuration
+
+1. **Update the API base URL** in `frontend/src/config.js`:
+   ```javascript
+   baseURL: process.env.NODE_ENV === 'production' 
+     ? 'https://your-railway-domain.up.railway.app/api'
+     : 'http://localhost/RISA%20management%20system/backend-laravel/public/api',
    ```
 
-### Step 2: Railway Backend Deployment
-
-#### 2.1 Create Railway Account
-1. Go to [Railway.app](https://railway.app)
-2. Sign up with GitHub
-3. Create a new project
-
-#### 2.2 Connect Your Repository
-1. Click "Deploy from GitHub repo"
-2. Select your RISA management system repository
-3. Choose the `backend` directory as the source
-
-#### 2.3 Set Environment Variables in Railway
-
-**Method 1: Railway Dashboard**
-1. Go to your project in Railway
-2. Click on your service
-3. Go to "Variables" tab
-4. Add each environment variable:
-
-```
-DB_HOST=your-railway-mysql-host
-DB_NAME=railway
-DB_USERNAME=root
-DB_PASSWORD=your-railway-mysql-password
-APP_NAME="RISA Management System"
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://your-app-name.railway.app
-JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
-SESSION_SECRET=your-session-secret-key-here-make-it-long-and-random
-UPLOAD_MAX_SIZE=10485760
-ALLOWED_FILE_TYPES=jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx
-FRONTEND_URL=https://your-frontend-app.vercel.app
-TIMEZONE=UTC
-```
-
-**Method 2: Railway CLI**
-1. Install Railway CLI: `npm install -g @railway/cli`
-2. Login: `railway login`
-3. Link project: `railway link`
-4. Set variables:
+2. **Commit and push the changes**:
    ```bash
-   railway variables set DB_HOST=your-railway-mysql-host
-   railway variables set DB_NAME=railway
-   railway variables set DB_USERNAME=root
-   railway variables set DB_PASSWORD=your-railway-mysql-password
-   railway variables set APP_NAME="RISA Management System"
-   railway variables set APP_ENV=production
-   railway variables set APP_DEBUG=false
-   railway variables set APP_URL=https://your-app-name.railway.app
-   railway variables set JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
-   railway variables set SESSION_SECRET=your-session-secret-key-here-make-it-long-and-random
-   railway variables set UPLOAD_MAX_SIZE=10485760
-   railway variables set ALLOWED_FILE_TYPES=jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx
-   railway variables set FRONTEND_URL=https://your-frontend-app.vercel.app
-   railway variables set TIMEZONE=UTC
+   git add .
+   git commit -m "Update API URL for production"
+   git push origin main
    ```
 
-#### 2.4 Add MySQL Database
-1. In Railway dashboard, click "New"
-2. Select "Database" → "MySQL"
-3. Railway will automatically provide connection details
-4. Copy the connection details to your environment variables
+### Step 2: Enable GitHub Pages
 
-### Step 3: Vercel Frontend Deployment
+1. **Go to your GitHub repository**
+2. **Navigate to Settings → Pages**
+3. **Configure GitHub Pages**:
+   - Source: "Deploy from a branch"
+   - Branch: `gh-pages`
+   - Folder: `/ (root)`
+4. **Click "Save"**
 
-#### 3.1 Create Vercel Account
-1. Go to [Vercel.com](https://vercel.com)
-2. Sign up with GitHub
-3. Import your repository
+### Step 3: Deploy
 
-#### 3.2 Set Environment Variables in Vercel
+1. **The GitHub Actions workflow will automatically run** when you push to main
+2. **Check the Actions tab** to monitor the deployment
+3. **Your app will be available at**: `https://your-username.github.io/RISA-management-system/`
 
-**Method 1: Vercel Dashboard**
-1. Go to your project in Vercel
-2. Click "Settings" → "Environment Variables"
-3. Add the following variables:
+## Post-Deployment
 
-```
-VITE_API_URL=https://your-backend-app.railway.app
-VITE_APP_NAME="RISA Management System"
-```
+### Step 1: Test the Application
 
-**Method 2: Vercel CLI**
-1. Install Vercel CLI: `npm install -g vercel`
-2. Login: `vercel login`
-3. Set variables:
-   ```bash
-   vercel env add VITE_API_URL
-   vercel env add VITE_APP_NAME
-   ```
+1. **Test the backend API**:
+   - Visit: `https://your-railway-domain.up.railway.app/api/health`
+   - Should return: `{"status":"healthy","timestamp":"...","version":"1.0.0"}`
 
-### Step 4: Environment Variables Reference
+2. **Test the frontend**:
+   - Visit your GitHub Pages URL
+   - Try logging in with the admin account:
+     - Email: `admin@risa.edu`
+     - Password: `admin123`
 
-#### Required Variables for Backend:
+### Step 2: Monitor and Maintain
 
-| Variable | Description | Example Value |
-|----------|-------------|---------------|
-| `DB_HOST` | Database host | `containers-us-west-1.railway.app` |
-| `DB_NAME` | Database name | `railway` |
-| `DB_USERNAME` | Database username | `root` |
-| `DB_PASSWORD` | Database password | `your-railway-password` |
-| `APP_NAME` | Application name | `"RISA Management System"` |
-| `APP_ENV` | Environment | `production` |
-| `APP_DEBUG` | Debug mode | `false` |
-| `APP_URL` | Backend URL | `https://your-app.railway.app` |
-| `JWT_SECRET` | JWT signing key | `long-random-string-here` |
-| `SESSION_SECRET` | Session secret | `another-long-random-string` |
-| `UPLOAD_MAX_SIZE` | Max file upload size | `10485760` |
-| `ALLOWED_FILE_TYPES` | Allowed file extensions | `jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx` |
-| `FRONTEND_URL` | Frontend URL for CORS | `https://your-frontend.vercel.app` |
-| `TIMEZONE` | Application timezone | `UTC` |
+1. **Railway Dashboard**:
+   - Monitor app performance
+   - Check logs for errors
+   - Scale resources as needed
 
-#### Required Variables for Frontend:
+2. **GitHub Actions**:
+   - Monitor deployment status
+   - Check for build failures
 
-| Variable | Description | Example Value |
-|----------|-------------|---------------|
-| `VITE_API_URL` | Backend API URL | `https://your-backend.railway.app` |
-| `VITE_APP_NAME` | Application name | `"RISA Management System"` |
+## Troubleshooting
 
-### Step 5: Security Best Practices
+### Common Issues
 
-#### 5.1 Generate Secure Keys
-Use these commands to generate secure keys:
+1. **CORS Errors**:
+   - Add your GitHub Pages domain to Railway CORS settings
+   - Or update the Laravel CORS configuration
+
+2. **Database Connection Issues**:
+   - Check Railway environment variables
+   - Ensure MySQL service is running
+
+3. **Build Failures**:
+   - Check Railway build logs
+   - Verify all dependencies are in `composer.json`
+
+4. **Frontend Not Loading**:
+   - Check GitHub Actions logs
+   - Verify the base URL in Vite config
+
+### Useful Commands
 
 ```bash
-# Generate JWT Secret (64 characters)
-openssl rand -base64 48
+# Check Railway logs
+railway logs
 
-# Generate Session Secret (32 characters)
-openssl rand -base64 24
+# Access Railway shell
+railway shell
 
-# Or use online generators:
-# https://generate-secret.vercel.app/64
-# https://www.allkeysgenerator.com/Random/Security-Encryption-Key-Generator.aspx
+# Run Laravel commands on Railway
+railway run php artisan migrate
+
+# Check GitHub Actions status
+# (Go to Actions tab in your GitHub repo)
 ```
 
-#### 5.2 Environment-Specific Values
+## Security Notes
 
-**Development (.env):**
-```env
-APP_ENV=development
-APP_DEBUG=true
-APP_URL=http://localhost:8000
-FRONTEND_URL=http://localhost:5173
-```
+1. **Environment Variables**: Never commit sensitive data to Git
+2. **Database**: Use Railway's managed MySQL service
+3. **HTTPS**: Both Railway and GitHub Pages provide HTTPS by default
+4. **API Keys**: Store them in Railway environment variables
 
-**Production (Railway):**
-```env
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://your-app.railway.app
-FRONTEND_URL=https://your-frontend.vercel.app
-```
+## Cost Considerations
 
-### Step 6: Testing Environment Variables
+- **Railway**: Free tier available, pay-as-you-go pricing
+- **GitHub Pages**: Free for public repositories
+- **MySQL**: Included in Railway pricing
 
-#### 6.1 Backend Test
-Create a test endpoint to verify environment variables:
+## Support
 
-```php
-// Add this to your API routes for testing
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && $_SERVER['REQUEST_URI'] === '/api/test-env') {
-    echo json_encode([
-        'database' => Config::getDatabaseConfig(),
-        'app' => Config::getAppConfig(),
-        'security' => array_keys(Config::getSecurityConfig()),
-        'upload' => Config::getUploadConfig()
-    ]);
-    exit;
-}
-```
-
-#### 6.2 Frontend Test
-Add this to your frontend to test API connection:
-
-```javascript
-// Test API connection
-fetch(import.meta.env.VITE_API_URL + '/api/test-env')
-  .then(response => response.json())
-  .then(data => console.log('Environment test:', data))
-  .catch(error => console.error('API connection failed:', error));
-```
-
-### Step 7: Troubleshooting
-
-#### Common Issues:
-
-1. **Database Connection Failed**
-   - Check `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`
-   - Verify database is running
-   - Check firewall settings
-
-2. **CORS Errors**
-   - Verify `FRONTEND_URL` is correct
-   - Check that frontend URL is in CORS allowed origins
-
-3. **File Upload Issues**
-   - Check `UPLOAD_MAX_SIZE` value
-   - Verify `ALLOWED_FILE_TYPES` format
-
-4. **Authentication Issues**
-   - Ensure `JWT_SECRET` and `SESSION_SECRET` are set
-   - Verify secrets are long and random
-
-#### Debug Mode:
-Set `APP_DEBUG=true` temporarily to see detailed error messages.
-
-### Step 8: Deployment Checklist
-
-- [ ] Backend environment variables set in Railway
-- [ ] Frontend environment variables set in Vercel
-- [ ] Database connection tested
-- [ ] API endpoints responding
-- [ ] CORS configured correctly
-- [ ] File uploads working
-- [ ] Authentication working
-- [ ] All features tested
-- [ ] Debug mode disabled in production
-- [ ] Security keys are secure and unique
-
-### Step 9: Monitoring
-
-After deployment, monitor:
-- Application logs in Railway
-- Error rates
-- Database performance
-- API response times
-- User authentication success rates 
+If you encounter issues:
+1. Check Railway documentation: https://docs.railway.app
+2. Check GitHub Pages documentation: https://pages.github.com
+3. Review Laravel deployment guide: https://laravel.com/docs/deployment 

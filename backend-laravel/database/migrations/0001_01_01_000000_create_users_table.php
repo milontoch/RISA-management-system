@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('profile_picture', 255)->nullable();
             $table->boolean('is_class_teacher')->default(0);
             $table->unsignedBigInteger('class_teacher_of')->nullable();
-            $table->timestamp('created_at')->useCurrent();
+            $table->timestamps();
             $table->foreign('class_teacher_of')->references('id')->on('classes')->onDelete('set null');
         });
     }

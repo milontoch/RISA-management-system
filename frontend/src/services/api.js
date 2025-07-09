@@ -404,6 +404,293 @@ class ApiService {
   async getExamStatistics(examId) {
     return this.request(`/exams/${examId}/statistics`);
   }
+
+  // Section management
+  async getSections(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/sections?${queryString}`);
+  }
+
+  async getSection(id) {
+    return this.request(`/sections/${id}`);
+  }
+
+  async createSection(sectionData) {
+    return this.request('/sections', {
+      method: 'POST',
+      body: JSON.stringify(sectionData),
+    });
+  }
+
+  async updateSection(id, sectionData) {
+    return this.request(`/sections/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(sectionData),
+    });
+  }
+
+  async deleteSection(id) {
+    return this.request(`/sections/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Fee management
+  async getFees(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/fees?${queryString}`);
+  }
+
+  async getFee(id) {
+    return this.request(`/fees/${id}`);
+  }
+
+  async createFee(feeData) {
+    return this.request('/fees', {
+      method: 'POST',
+      body: JSON.stringify(feeData),
+    });
+  }
+
+  async updateFee(id, feeData) {
+    return this.request(`/fees/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(feeData),
+    });
+  }
+
+  async deleteFee(id) {
+    return this.request(`/fees/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getFeeReport(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/fees/report?${queryString}`);
+  }
+
+  // Result management
+  async getResults(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/results?${queryString}`);
+  }
+
+  async getResult(id) {
+    return this.request(`/results/${id}`);
+  }
+
+  async createResult(resultData) {
+    return this.request('/results', {
+      method: 'POST',
+      body: JSON.stringify(resultData),
+    });
+  }
+
+  async updateResult(id, resultData) {
+    return this.request(`/results/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(resultData),
+    });
+  }
+
+  async deleteResult(id) {
+    return this.request(`/results/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getResultReport(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/results/report?${queryString}`);
+  }
+
+  // Notification management
+  async getNotifications(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/notifications?${queryString}`);
+  }
+
+  async getNotification(id) {
+    return this.request(`/notifications/${id}`);
+  }
+
+  async createNotification(notificationData) {
+    return this.request('/notifications', {
+      method: 'POST',
+      body: JSON.stringify(notificationData),
+    });
+  }
+
+  async updateNotification(id, notificationData) {
+    return this.request(`/notifications/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(notificationData),
+    });
+  }
+
+  async deleteNotification(id) {
+    return this.request(`/notifications/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async markNotificationAsRead(id) {
+    return this.request(`/notifications/${id}/read`, {
+      method: 'PUT',
+    });
+  }
+
+  // Message management
+  async getMessages(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/messages?${queryString}`);
+  }
+
+  async getMessage(id) {
+    return this.request(`/messages/${id}`);
+  }
+
+  async createMessage(messageData) {
+    return this.request('/messages', {
+      method: 'POST',
+      body: JSON.stringify(messageData),
+    });
+  }
+
+  async updateMessage(id, messageData) {
+    return this.request(`/messages/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(messageData),
+    });
+  }
+
+  async deleteMessage(id) {
+    return this.request(`/messages/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getConversation(userId) {
+    return this.request(`/messages/conversation?user_id=${userId}`);
+  }
+
+  async markMessageAsRead(messageId) {
+    return this.request(`/messages/${messageId}/read`, {
+      method: 'PUT',
+    });
+  }
+
+  // Document management
+  async getDocuments(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/documents?${queryString}`);
+  }
+
+  async getDocument(id) {
+    return this.request(`/documents/${id}`);
+  }
+
+  async createDocument(documentData) {
+    return this.request('/documents', {
+      method: 'POST',
+      body: JSON.stringify(documentData),
+    });
+  }
+
+  async updateDocument(id, documentData) {
+    return this.request(`/documents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(documentData),
+    });
+  }
+
+  async deleteDocument(id) {
+    return this.request(`/documents/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async uploadDocument(formData) {
+    return this.request('/documents/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      body: formData,
+    });
+  }
+
+  // Timetable management
+  async getTimetable(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/timetable?${queryString}`);
+  }
+
+  async getTimetableEntry(id) {
+    return this.request(`/timetable/${id}`);
+  }
+
+  async createTimetableEntry(timetableData) {
+    return this.request('/timetable', {
+      method: 'POST',
+      body: JSON.stringify(timetableData),
+    });
+  }
+
+  async updateTimetableEntry(id, timetableData) {
+    return this.request(`/timetable/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(timetableData),
+    });
+  }
+
+  async deleteTimetableEntry(id) {
+    return this.request(`/timetable/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getTimetableByClass(classId) {
+    return this.request(`/timetable/class/${classId}`);
+  }
+
+  async getTimetableByTeacher(teacherId) {
+    return this.request(`/timetable/teacher/${teacherId}`);
+  }
+
+  // Report management
+  async getReports(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/reports?${queryString}`);
+  }
+
+  async generateReport(reportType, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/reports/${reportType}?${queryString}`);
+  }
+
+  // Dashboard endpoints
+  async getStudentDashboard(studentId) {
+    return this.request(`/dashboard/student?student_id=${studentId}`);
+  }
+
+  async getParentDashboard(parentId) {
+    return this.request(`/dashboard/parent?parent_id=${parentId}`);
+  }
+
+  async getTeacherDashboard(teacherId) {
+    return this.request(`/dashboard/teacher?teacher_id=${teacherId}`);
+  }
+
+  // Class teacher specific endpoints
+  async getClassTeachers() {
+    return this.request('/users/class-teachers');
+  }
+
+  async getAttendanceByClassTeacher(classId, date) {
+    return this.request(`/attendance/is-morning-done?class_id=${classId}&date=${date}`);
+  }
 }
 
 // Create and export a singleton instance
