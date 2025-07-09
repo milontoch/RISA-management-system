@@ -2,7 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "deploy": {
     "startCommand": "php -S 0.0.0.0:$PORT -t public",
-    "healthcheckPath": "/public/api/health",
+    "healthcheckPath": "/health.php",
     "healthcheckTimeout": 50,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
