@@ -22,6 +22,8 @@ import MyChildrenPage from './MyChildrenPage';
 import TimetablePage from './TimetablePage';
 import React, { useState } from 'react';
 
+// Deployment trigger - $(date)
+
 function PrivateRoute({ children }) {
   const { user } = useAuth();
   if (!user) {
@@ -85,3 +87,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+// Deployment trigger - 10/07/2025  6:19:33.49 
