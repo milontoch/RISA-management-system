@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ClassModel extends Model
 {
+    protected $table = 'classes';
     public function sections()
     {
         return $this->hasMany(Section::class, 'class_id');

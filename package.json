@@ -3,6 +3,7 @@
     "@tailwindcss/postcss": "^4.1.11"
   },
   "dependencies": {
+    "node-fetch": "^3.3.2",
     "react-router-dom": "^7.6.3"
   }
 }

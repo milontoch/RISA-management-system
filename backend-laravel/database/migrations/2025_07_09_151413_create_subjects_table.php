@@ -14,6 +14,11 @@ return new class extends Migration
         Schema::create('subjects', function (Blueprint $table) {
             $table->id();
             $table->string('name', 100);
+            $table->string('code', 20)->unique();
+            $table->text('description')->nullable();
+            $table->integer('credits')->default(0);
+            $table->string('status', 20)->default('active');
+            $table->timestamps();
         });
     }
 
