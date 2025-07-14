@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Message;
+use Illuminate\Support\Facades\Auth;
 
 class MessageController extends Controller
 {
@@ -11,7 +13,10 @@ class MessageController extends Controller
      */
     public function index()
     {
-        //
+        $user = Auth::user();
+        $messages = $user->receivedMessages()->latest()->get();
+        
+        return response()->json($messages);
     }
 
     /**
@@ -19,7 +24,22 @@ class MessageController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'message' => 'required|string',
+            'receiver_id' => 'required|exists:users,id',
+        ]);
+
+        $message = Message::create([
+            'sender_id' => Auth::id(),
+            'receiver_id' => $request->receiver_id,
+            'message' => $request->message,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Message sent successfully',
+            'data' => $message
+        ], 201);
     }
 
     /**
@@ -27,7 +47,10 @@ class MessageController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $user = Auth::user();
+        $message = $user->receivedMessages()->findOrFail($id);
+
+        return response()->json($message);
     }
 
     /**
@@ -35,7 +58,21 @@ class MessageController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $user = Auth::user();
+        $message = $user->receivedMessages()->findOrFail($id);
+
+        $request->validate([
+            'title' => 'sometimes|string|max:255',
+            'message' => 'sometimes|string',
+        ]);
+
+        $message->update($request->all());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Message updated successfully',
+            'data' => $message
+        ]);
     }
 
     /**
@@ -43,6 +80,14 @@ class MessageController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $user = Auth::user();
+        $message = $user->receivedMessages()->findOrFail($id);
+        
+        $message->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Message deleted successfully'
+        ]);
     }
 }

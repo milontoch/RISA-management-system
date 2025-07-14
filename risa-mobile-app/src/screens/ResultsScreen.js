@@ -22,7 +22,9 @@ export default function ResultsScreen({ navigation }) {
   const loadResults = async () => {
     try {
       const data = await api.getResults();
-      setResults(data.data || data);
+      // Handle paginated or array response
+      const resultsArray = Array.isArray(data) ? data : (data.data || []);
+      setResults(resultsArray);
     } catch (error) {
       console.error('Error loading results:', error);
       Alert.alert('Error', 'Failed to load results');
@@ -34,13 +36,12 @@ export default function ResultsScreen({ navigation }) {
   const renderResult = ({ item }) => (
     <TouchableOpacity style={styles.resultCard}>
       <View style={styles.resultInfo}>
-        <Text style={styles.studentName}>{item.student_name}</Text>
-        <Text style={styles.examTitle}>{item.exam_title}</Text>
-        <Text style={styles.subjectName}>{item.subject_name}</Text>
+        <Text style={styles.studentName}>{item.student?.user?.name || ''}</Text>
+        <Text style={styles.examTitle}>{item.exam?.name || ''}</Text>
+        <Text style={styles.subjectName}>{item.subject?.name || ''}</Text>
       </View>
       <View style={styles.scoreContainer}>
-        <Text style={styles.score}>{item.score}%</Text>
-        <Text style={styles.grade}>{item.grade}</Text>
+        <Text style={styles.score}>{item.marks_obtained} / {item.total_marks}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -56,13 +57,6 @@ export default function ResultsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Results</Text>
-        <TouchableOpacity style={styles.addButton}>
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
       <FlatList
         data={results}
         renderItem={renderResult}
@@ -89,46 +83,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  addButton: {
-    backgroundColor: '#007AFF',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   listContainer: {
     padding: 20,
   },
   resultCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   resultInfo: {
@@ -141,25 +106,20 @@ const styles = StyleSheet.create({
   },
   examTitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#007AFF',
     marginTop: 2,
   },
   subjectName: {
     fontSize: 12,
-    color: '#007AFF',
+    color: '#666',
     marginTop: 2,
   },
   scoreContainer: {
     alignItems: 'flex-end',
   },
   score: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
-  },
-  grade: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
+    color: '#34C759',
   },
 }); 

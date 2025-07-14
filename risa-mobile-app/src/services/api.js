@@ -1,79 +1,56 @@
 // API Service for Laravel Backend - React Native Version
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import config from '../config';
 
 class ApiService {
   constructor() {
     this.baseURL = config.api.baseURL;
+    this.token = null;
   }
 
-  // Get auth token from AsyncStorage
-  async getToken() {
-    try {
-      return await AsyncStorage.getItem('token');
-    } catch (error) {
-      console.error('Error getting token:', error);
-      return null;
-    }
+  setToken(token) {
+    this.token = token;
   }
 
-  // Set auth token in AsyncStorage
-  async setToken(token) {
-    try {
-      if (token) {
-        await AsyncStorage.setItem('token', token);
-      } else {
-        await AsyncStorage.removeItem('token');
-      }
-    } catch (error) {
-      console.error('Error setting token:', error);
-    }
-  }
-
-  // Generic request method
-  async request(endpoint, options = {}) {
-    const token = await this.getToken();
+  getHeaders() {
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
     
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    
+    return headers;
+  }
+
+  async request(endpoint, options = {}) {
+    const url = `${this.baseURL}${endpoint}`;
     const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...options.headers,
-      },
+      headers: this.getHeaders(),
       ...options,
     };
 
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, config);
-      const data = await response.json();
-
+      const response = await fetch(url, config);
+      
       if (!response.ok) {
-        throw new Error(data.message || 'API request failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
-
-      return data;
+      
+      return await response.json();
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('API request failed:', error);
       throw error;
     }
   }
 
-  // Authentication endpoints
+  // Authentication
   async login(email, password) {
     return this.request('/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
-    });
-  }
-
-  async register(userData) {
-    return this.request('/register', {
-      method: 'POST',
-      body: JSON.stringify(userData),
     });
   }
 
@@ -83,72 +60,35 @@ class ApiService {
     });
   }
 
-  async getProfile() {
+  async getUser() {
     return this.request('/profile');
   }
 
-  async updateProfile(userData) {
-    return this.request('/profile', {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
+  // Dashboard
+  async getDashboard(role) {
+    return this.request(`/dashboard/${role}`);
   }
 
-  async getDashboard() {
-    return this.request('/dashboard');
-  }
-
-  // User management
-  async getUsers(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/users?${queryString}`);
-  }
-
-  async getUser(id) {
-    return this.request(`/users/${id}`);
-  }
-
-  async createUser(userData) {
-    return this.request('/users', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    });
-  }
-
-  async updateUser(id, userData) {
-    return this.request(`/users/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
-  }
-
-  async deleteUser(id) {
-    return this.request(`/users/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Student management
-  async getStudents(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/students?${queryString}`);
+  // Students
+  async getStudents() {
+    return this.request('/students');
   }
 
   async getStudent(id) {
     return this.request(`/students/${id}`);
   }
 
-  async createStudent(studentData) {
+  async createStudent(data) {
     return this.request('/students', {
       method: 'POST',
-      body: JSON.stringify(studentData),
+      body: JSON.stringify(data),
     });
   }
 
-  async updateStudent(id, studentData) {
+  async updateStudent(id, data) {
     return this.request(`/students/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(studentData),
+      body: JSON.stringify(data),
     });
   }
 
@@ -158,178 +98,26 @@ class ApiService {
     });
   }
 
-  async getStudentAttendance(studentId) {
-    return this.request(`/students/${studentId}/attendance`);
-  }
-
-  async getStudentResults(studentId) {
-    return this.request(`/students/${studentId}/results`);
-  }
-
-  // Attendance management
-  async getAttendance(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/attendance?${queryString}`);
-  }
-
-  async getAttendanceRecord(id) {
-    return this.request(`/attendance/${id}`);
-  }
-
-  async createAttendance(attendanceData) {
-    return this.request('/attendance', {
-      method: 'POST',
-      body: JSON.stringify(attendanceData),
-    });
-  }
-
-  async updateAttendance(id, attendanceData) {
-    return this.request(`/attendance/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(attendanceData),
-    });
-  }
-
-  async deleteAttendance(id) {
-    return this.request(`/attendance/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async bulkMarkAttendance(attendanceData) {
-    return this.request('/attendance/bulk', {
-      method: 'POST',
-      body: JSON.stringify(attendanceData),
-    });
-  }
-
-  async getAttendanceReport(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/attendance/report?${queryString}`);
-  }
-
-  async getAttendanceByClass(classId) {
-    return this.request(`/attendance/class/${classId}`);
-  }
-
-  async getAttendanceByStudent(studentId) {
-    return this.request(`/attendance/student/${studentId}`);
-  }
-
-  // Subject management
-  async getSubjects(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/subjects?${queryString}`);
-  }
-
-  async getSubject(id) {
-    return this.request(`/subjects/${id}`);
-  }
-
-  async createSubject(subjectData) {
-    return this.request('/subjects', {
-      method: 'POST',
-      body: JSON.stringify(subjectData),
-    });
-  }
-
-  async updateSubject(id, subjectData) {
-    return this.request(`/subjects/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(subjectData),
-    });
-  }
-
-  async deleteSubject(id) {
-    return this.request(`/subjects/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async getSubjectsByClass(classId) {
-    return this.request(`/subjects/class/${classId}`);
-  }
-
-  async getActiveSubjects() {
-    return this.request('/subjects/active');
-  }
-
-  // Class management
-  async getClasses(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/classes?${queryString}`);
-  }
-
-  async getClass(id) {
-    return this.request(`/classes/${id}`);
-  }
-
-  async createClass(classData) {
-    return this.request('/classes', {
-      method: 'POST',
-      body: JSON.stringify(classData),
-    });
-  }
-
-  async updateClass(id, classData) {
-    return this.request(`/classes/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(classData),
-    });
-  }
-
-  async deleteClass(id) {
-    return this.request(`/classes/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async getClassStudents(classId) {
-    return this.request(`/classes/${classId}/students`);
-  }
-
-  async getClassSubjects(classId) {
-    return this.request(`/classes/${classId}/subjects`);
-  }
-
-  async addSubjectToClass(classId, subjectData) {
-    return this.request(`/classes/${classId}/subjects`, {
-      method: 'POST',
-      body: JSON.stringify(subjectData),
-    });
-  }
-
-  async removeSubjectFromClass(classId, subjectId) {
-    return this.request(`/classes/${classId}/subjects/${subjectId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async getActiveClasses() {
-    return this.request('/classes/active');
-  }
-
-  // Teacher management
-  async getTeachers(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/teachers?${queryString}`);
+  // Teachers
+  async getTeachers() {
+    return this.request('/teachers');
   }
 
   async getTeacher(id) {
     return this.request(`/teachers/${id}`);
   }
 
-  async createTeacher(teacherData) {
+  async createTeacher(data) {
     return this.request('/teachers', {
       method: 'POST',
-      body: JSON.stringify(teacherData),
+      body: JSON.stringify(data),
     });
   }
 
-  async updateTeacher(id, teacherData) {
+  async updateTeacher(id, data) {
     return this.request(`/teachers/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(teacherData),
+      body: JSON.stringify(data),
     });
   }
 
@@ -339,168 +127,80 @@ class ApiService {
     });
   }
 
-  async getTeacherClasses(teacherId) {
-    return this.request(`/teachers/${teacherId}/classes`);
+  // Classes
+  async getClasses() {
+    return this.request('/classes');
   }
 
-  async getTeacherSubjects(teacherId) {
-    return this.request(`/teachers/${teacherId}/subjects`);
+  async getClass(id) {
+    return this.request(`/classes/${id}`);
   }
 
-  async getTeacherDashboard(teacherId) {
-    return this.request(`/teachers/${teacherId}/dashboard`);
-  }
-
-  async getActiveTeachers() {
-    return this.request('/teachers/active');
-  }
-
-  // Exam management
-  async getExams(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/exams?${queryString}`);
-  }
-
-  async getExam(id) {
-    return this.request(`/exams/${id}`);
-  }
-
-  async createExam(examData) {
-    return this.request('/exams', {
+  async createClass(data) {
+    return this.request('/classes', {
       method: 'POST',
-      body: JSON.stringify(examData),
+      body: JSON.stringify(data),
     });
   }
 
-  async updateExam(id, examData) {
-    return this.request(`/exams/${id}`, {
+  async updateClass(id, data) {
+    return this.request(`/classes/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(examData),
+      body: JSON.stringify(data),
     });
   }
 
-  async deleteExam(id) {
-    return this.request(`/exams/${id}`, {
+  async deleteClass(id) {
+    return this.request(`/classes/${id}`, {
       method: 'DELETE',
     });
   }
 
-  async getExamResults(examId) {
-    return this.request(`/exams/${examId}/results`);
+  // Attendance
+  async getAttendance(date = null) {
+    const endpoint = date ? `/attendance?date=${date}` : '/attendance';
+    return this.request(endpoint);
   }
 
-  async addExamResult(examId, resultData) {
-    return this.request(`/exams/${examId}/results`, {
+  async markAttendance(data) {
+    return this.request('/attendance', {
       method: 'POST',
-      body: JSON.stringify(resultData),
+      body: JSON.stringify(data),
     });
   }
 
-  async updateExamResult(examId, resultId, resultData) {
-    return this.request(`/exams/${examId}/results/${resultId}`, {
+  async updateAttendance(id, data) {
+    return this.request(`/attendance/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(resultData),
+      body: JSON.stringify(data),
     });
   }
 
-  async getUpcomingExams() {
-    return this.request('/exams/upcoming');
+  // Results
+  async getResults() {
+    return this.request('/results');
   }
 
-  async getExamsByClass(classId) {
-    return this.request(`/exams/class/${classId}`);
-  }
-
-  async getExamStatistics(examId) {
-    return this.request(`/exams/${examId}/statistics`);
-  }
-
-  // Section management
-  async getSections(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/sections?${queryString}`);
-  }
-
-  async getSection(id) {
-    return this.request(`/sections/${id}`);
-  }
-
-  async createSection(sectionData) {
-    return this.request('/sections', {
-      method: 'POST',
-      body: JSON.stringify(sectionData),
-    });
-  }
-
-  async updateSection(id, sectionData) {
-    return this.request(`/sections/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(sectionData),
-    });
-  }
-
-  async deleteSection(id) {
-    return this.request(`/sections/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Fee management
-  async getFees(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/fees?${queryString}`);
-  }
-
-  async getFee(id) {
-    return this.request(`/fees/${id}`);
-  }
-
-  async createFee(feeData) {
-    return this.request('/fees', {
-      method: 'POST',
-      body: JSON.stringify(feeData),
-    });
-  }
-
-  async updateFee(id, feeData) {
-    return this.request(`/fees/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(feeData),
-    });
-  }
-
-  async deleteFee(id) {
-    return this.request(`/fees/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async getFeeReport(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/fees/report?${queryString}`);
-  }
-
-  // Results management
-  async getResults(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/results?${queryString}`);
+  // Exams
+  async getExams() {
+    return this.request('/exams');
   }
 
   async getResult(id) {
     return this.request(`/results/${id}`);
   }
 
-  async createResult(resultData) {
+  async createResult(data) {
     return this.request('/results', {
       method: 'POST',
-      body: JSON.stringify(resultData),
+      body: JSON.stringify(data),
     });
   }
 
-  async updateResult(id, resultData) {
+  async updateResult(id, data) {
     return this.request(`/results/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(resultData),
+      body: JSON.stringify(data),
     });
   }
 
@@ -510,68 +210,48 @@ class ApiService {
     });
   }
 
-  async getResultReport(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/results/report?${queryString}`);
+  // Fees
+  async getFees() {
+    return this.request('/fees');
   }
 
-  // Notifications
-  async getNotifications(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/notifications?${queryString}`);
+  async getFee(id) {
+    return this.request(`/fees/${id}`);
   }
 
-  async getNotification(id) {
-    return this.request(`/notifications/${id}`);
-  }
-
-  async createNotification(notificationData) {
-    return this.request('/notifications', {
+  async createFee(data) {
+    return this.request('/fees', {
       method: 'POST',
-      body: JSON.stringify(notificationData),
+      body: JSON.stringify(data),
     });
   }
 
-  async updateNotification(id, notificationData) {
-    return this.request(`/notifications/${id}`, {
+  async updateFee(id, data) {
+    return this.request(`/fees/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(notificationData),
+      body: JSON.stringify(data),
     });
   }
 
-  async deleteNotification(id) {
-    return this.request(`/notifications/${id}`, {
+  async deleteFee(id) {
+    return this.request(`/fees/${id}`, {
       method: 'DELETE',
     });
   }
 
-  async markNotificationAsRead(id) {
-    return this.request(`/notifications/${id}/read`, {
-      method: 'PUT',
-    });
-  }
-
   // Messages
-  async getMessages(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/messages?${queryString}`);
+  async getMessages() {
+    return this.request('/messages');
   }
 
   async getMessage(id) {
     return this.request(`/messages/${id}`);
   }
 
-  async createMessage(messageData) {
+  async sendMessage(data) {
     return this.request('/messages', {
       method: 'POST',
-      body: JSON.stringify(messageData),
-    });
-  }
-
-  async updateMessage(id, messageData) {
-    return this.request(`/messages/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(messageData),
+      body: JSON.stringify(data),
     });
   }
 
@@ -581,94 +261,39 @@ class ApiService {
     });
   }
 
-  async getConversation(userId) {
-    return this.request(`/messages/conversation/${userId}`);
+  // Notifications
+  async getNotifications() {
+    return this.request('/notifications');
   }
 
-  async markMessageAsRead(messageId) {
-    return this.request(`/messages/${messageId}/read`, {
+  async markNotificationAsRead(id) {
+    return this.request(`/notifications/${id}/read`, {
       method: 'PUT',
     });
   }
 
-  // Documents
-  async getDocuments(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/documents?${queryString}`);
-  }
-
-  async getDocument(id) {
-    return this.request(`/documents/${id}`);
-  }
-
-  async createDocument(documentData) {
-    return this.request('/documents', {
-      method: 'POST',
-      body: JSON.stringify(documentData),
-    });
-  }
-
-  async updateDocument(id, documentData) {
-    return this.request(`/documents/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(documentData),
-    });
-  }
-
-  async deleteDocument(id) {
-    return this.request(`/documents/${id}`, {
+  async deleteNotification(id) {
+    return this.request(`/notifications/${id}`, {
       method: 'DELETE',
     });
   }
 
-  async uploadDocument(formData) {
-    const token = await this.getToken();
-    
-    const config = {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    };
-
-    try {
-      const response = await fetch(`${this.baseURL}/documents/upload`, config);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Upload failed');
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Upload Error:', error);
-      throw error;
-    }
-  }
-
   // Timetable
-  async getTimetable(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/timetable?${queryString}`);
+  async getTimetable() {
+    return this.request('/timetable');
   }
 
-  async getTimetableEntry(id) {
-    return this.request(`/timetable/${id}`);
-  }
-
-  async createTimetableEntry(timetableData) {
+  async createTimetableEntry(data) {
     return this.request('/timetable', {
       method: 'POST',
-      body: JSON.stringify(timetableData),
+      body: JSON.stringify(data),
     });
   }
 
-  async updateTimetableEntry(id, timetableData) {
+  async updateTimetableEntry(id, data) {
     return this.request(`/timetable/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(timetableData),
+      body: JSON.stringify(data),
     });
   }
 
@@ -678,45 +303,53 @@ class ApiService {
     });
   }
 
-  async getTimetableByClass(classId) {
-    return this.request(`/timetable/class/${classId}`);
+  // Documents
+  async getDocuments() {
+    return this.request('/documents');
   }
 
-  async getTimetableByTeacher(teacherId) {
-    return this.request(`/timetable/teacher/${teacherId}`);
+  async uploadDocument(formData) {
+    const url = `${this.baseURL}/documents`;
+    const config = {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/json',
+      },
+      body: formData,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Document upload failed:', error);
+      throw error;
+    }
+  }
+
+  async deleteDocument(id) {
+    return this.request(`/documents/${id}`, {
+      method: 'DELETE',
+    });
   }
 
   // Reports
-  async getReports(params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/reports?${queryString}`);
+  async getReports() {
+    return this.request('/reports');
   }
 
-  async generateReport(reportType, params = {}) {
-    const queryString = new URLSearchParams(params).toString();
-    return this.request(`/reports/${reportType}?${queryString}`);
-  }
-
-  // Dashboard endpoints
-  async getStudentDashboard(studentId) {
-    return this.request(`/dashboard/student/${studentId}`);
-  }
-
-  async getParentDashboard(parentId) {
-    return this.request(`/dashboard/parent/${parentId}`);
-  }
-
-  async getTeacherDashboard(teacherId) {
-    return this.request(`/dashboard/teacher/${teacherId}`);
-  }
-
-  // Additional endpoints
-  async getClassTeachers() {
-    return this.request('/classes/teachers');
-  }
-
-  async getAttendanceByClassTeacher(classId, date) {
-    return this.request(`/attendance/class/${classId}/teacher?date=${date}`);
+  async generateReport(type, params = {}) {
+    return this.request('/reports/generate', {
+      method: 'POST',
+      body: JSON.stringify({ type, ...params }),
+    });
   }
 }
 

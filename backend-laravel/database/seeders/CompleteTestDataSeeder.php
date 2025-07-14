@@ -237,6 +237,50 @@ class CompleteTestDataSeeder extends Seeder
             'status' => 'active',
         ]);
 
+        // Create sample notifications
+        \App\Models\Notification::create([
+            'user_id' => $admin->id,
+            'title' => 'Welcome to RISA',
+            'message' => 'Welcome to the RISA Management System!',
+            'type' => 'announcement',
+            'read_at' => null,
+        ]);
+
+        \App\Models\Notification::create([
+            'user_id' => $teacher1->id,
+            'title' => 'Class Schedule Update',
+            'message' => 'Your class schedule has been updated for next week.',
+            'type' => 'reminder',
+            'read_at' => null,
+        ]);
+
+        \App\Models\Notification::create([
+            'user_id' => $studentUser1->id,
+            'title' => 'New Assignment',
+            'message' => 'A new assignment has been posted for Mathematics.',
+            'type' => 'message',
+            'read_at' => null,
+        ]);
+
+        // Create sample messages
+        \App\Models\Message::create([
+            'sender_id' => $admin->id,
+            'receiver_id' => $teacher1->id,
+            'message' => 'Please submit your weekly report by Friday.',
+        ]);
+
+        \App\Models\Message::create([
+            'sender_id' => $teacher1->id,
+            'receiver_id' => $studentUser1->id,
+            'message' => 'Great work on your last assignment!',
+        ]);
+
+        \App\Models\Message::create([
+            'sender_id' => $parent1->id,
+            'receiver_id' => $teacher1->id,
+            'message' => 'Could you please provide an update on Alex\'s progress?',
+        ]);
+
         $this->command->info('Complete test data created successfully!');
         $this->command->info('');
         $this->command->info('=== LOGIN CREDENTIALS ===');

@@ -14,8 +14,11 @@ return new class extends Migration
         Schema::create('notifications', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id');
+            $table->string('title');
             $table->text('message');
-            $table->timestamp('created_at')->useCurrent();
+            $table->enum('type', ['message', 'reminder', 'announcement'])->default('message');
+            $table->timestamp('read_at')->nullable();
+            $table->timestamps();
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
     }

@@ -34,9 +34,9 @@ export default function MessagesScreen({ navigation }) {
   const renderMessage = ({ item }) => (
     <TouchableOpacity style={styles.messageCard}>
       <View style={styles.messageInfo}>
-        <Text style={styles.sender}>{item.sender_name}</Text>
-        <Text style={styles.subject}>{item.subject}</Text>
-        <Text style={styles.preview}>{item.preview}</Text>
+        <Text style={styles.sender}>{item.sender?.name || 'Unknown'}</Text>
+        <Text style={styles.preview}>{item.message}</Text>
+        <Text style={styles.time}>{new Date(item.sent_at || item.created_at).toLocaleDateString()}</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#ccc" />
     </TouchableOpacity>
@@ -118,13 +118,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   messageInfo: {
@@ -144,5 +138,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#007AFF',
     marginTop: 2,
+  },
+  time: {
+    fontSize: 10,
+    color: '#999',
+    marginTop: 4,
   },
 }); 

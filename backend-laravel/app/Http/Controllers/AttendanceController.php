@@ -33,10 +33,7 @@ class AttendanceController extends Controller
             ->orderBy('date', 'desc')
             ->paginate(15);
 
-        return response()->json([
-            'success' => true,
-            'data' => $attendance
-        ]);
+        return response()->json($attendance);
     }
 
     /**
@@ -80,10 +77,7 @@ class AttendanceController extends Controller
         $attendance = Attendance::with(['student.user', 'student.classModel', 'student.section'])
             ->findOrFail($id);
 
-        return response()->json([
-            'success' => true,
-            'data' => $attendance
-        ]);
+        return response()->json($attendance);
     }
 
     /**

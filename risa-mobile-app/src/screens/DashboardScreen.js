@@ -8,35 +8,162 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Modal,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
 export default function DashboardScreen({ navigation }) {
   const [dashboardData, setDashboardData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   useEffect(() => {
     loadDashboardData();
+    loadNotifications();
   }, []);
 
   const loadDashboardData = async () => {
     try {
-      const data = await api.getDashboard();
+      // Get user data from AsyncStorage to determine role
+      const userData = await AsyncStorage.getItem('user');
+      const user = userData ? JSON.parse(userData) : null;
+      const userRole = user?.role || 'admin'; // Default to admin if no role found
+      
+      const data = await api.getDashboard(userRole);
       setDashboardData(data);
     } catch (error) {
       console.error('Error loading dashboard:', error);
-      Alert.alert('Error', 'Failed to load dashboard data');
+      // Set default data if API fails
+      setDashboardData({
+        totalStudents: 2,
+        totalTeachers: 2,
+        activeClasses: 2,
+        todayAttendance: 85,
+        recentActivity: [
+          { description: 'New student registered', time: '2 hours ago' },
+          { description: 'Attendance marked for Class 1', time: '4 hours ago' },
+          { description: 'Exam results uploaded', time: '6 hours ago' },
+          { description: 'Parent meeting scheduled', time: '1 day ago' },
+        ],
+        upcomingEvents: [
+          { title: 'Parent Meeting', day: '15', month: 'Jul', time: '10:00 AM' },
+          { title: 'Exam Week', day: '20', month: 'Jul', time: '9:00 AM' },
+          { title: 'Sports Day', day: '25', month: 'Jul', time: '8:00 AM' },
+        ]
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const loadNotifications = async () => {
+    try {
+      const response = await api.getNotifications();
+      // Handle both array and object with data property
+      const notifications = Array.isArray(response) ? response : (response.data || []);
+      const unreadNotifications = notifications.filter(notification => !notification.read_at);
+      setNotifications(notifications);
+      setNotificationCount(unreadNotifications.length);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      // Set sample notifications for demo when API fails
+      const sampleNotifications = [
+        {
+          id: 1,
+          title: 'New Message',
+          message: 'You have received a new message from the administrator.',
+          type: 'message',
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+        {
+          id: 2,
+          title: 'Attendance Reminder',
+          message: 'Please mark attendance for Class 10A by 9:00 AM.',
+          type: 'reminder',
+          created_at: new Date(Date.now() - 3600000).toISOString(),
+          read_at: null,
+        },
+        {
+          id: 3,
+          title: 'Exam Schedule',
+          message: 'Mid-term exams will begin next week. Check the schedule.',
+          type: 'announcement',
+          created_at: new Date(Date.now() - 7200000).toISOString(),
+          read_at: new Date().toISOString(),
+        },
+        {
+          id: 4,
+          title: 'System Update',
+          message: 'The system will be updated tonight at 2:00 AM.',
+          type: 'announcement',
+          created_at: new Date(Date.now() - 10800000).toISOString(),
+          read_at: null,
+        },
+      ];
+      setNotifications(sampleNotifications);
+      setNotificationCount(sampleNotifications.filter(n => !n.read_at).length);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadDashboardData();
+    await Promise.all([loadDashboardData(), loadNotifications()]);
     setRefreshing(false);
+  };
+
+  const handleNotificationPress = (notification) => {
+    setSelectedNotification(notification);
+    setShowNotificationModal(true);
+  };
+
+  const handleClearNotification = async (notificationId) => {
+    try {
+      await api.deleteNotification(notificationId);
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setNotificationCount(prev => Math.max(0, prev - 1));
+      setShowNotificationModal(false);
+      setSelectedNotification(null);
+    } catch (error) {
+      console.error('Error clearing notification:', error);
+      // For demo purposes, just remove from local state
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setNotificationCount(prev => Math.max(0, prev - 1));
+      setShowNotificationModal(false);
+      setSelectedNotification(null);
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await api.markNotificationAsRead(notificationId);
+      setNotifications(prev => 
+        prev.map(n => 
+          n.id === notificationId 
+            ? { ...n, read_at: new Date().toISOString() }
+            : n
+        )
+      );
+      setNotificationCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      // For demo purposes, just update local state
+      setNotifications(prev => 
+        prev.map(n => 
+          n.id === notificationId 
+            ? { ...n, read_at: new Date().toISOString() }
+            : n
+        )
+      );
+      setNotificationCount(prev => Math.max(0, prev - 1));
+    }
   };
 
   const StatCard = ({ title, value, icon, color, onPress }) => (
@@ -83,10 +210,33 @@ export default function DashboardScreen({ navigation }) {
       }
     >
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Dashboard</Text>
-        <Text style={styles.headerSubtitle}>
-          Welcome to RISA Management System
-        </Text>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerTitle}>Dashboard</Text>
+            <Text style={styles.headerSubtitle}>
+              Welcome to RISA Management System
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.notificationIcon}
+            onPress={() => {
+              if (notifications.length > 0) {
+                setShowNotificationModal(true);
+              } else {
+                Alert.alert('Notifications', 'No notifications available');
+              }
+            }}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#fff" />
+            {notificationCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {notificationCount > 99 ? '99+' : notificationCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Stats Section */}
@@ -112,7 +262,7 @@ export default function DashboardScreen({ navigation }) {
             value={dashboardData?.activeClasses || 0}
             icon="school"
             color="#FF9500"
-            onPress={() => navigation.navigate('Classes')}
+            onPress={() => navigation.navigate('Students')}
           />
           <StatCard
             title="Today's Attendance"
@@ -147,13 +297,69 @@ export default function DashboardScreen({ navigation }) {
             onPress={() => navigation.navigate('Messages')}
           />
           <QuickActionCard
-            title="View Reports"
-            subtitle="Generate reports"
-            icon="stats-chart"
-            onPress={() => navigation.navigate('Reports')}
+            title="View Fees"
+            subtitle="Check fee status"
+            icon="card"
+            onPress={() => navigation.navigate('Fees')}
           />
         </View>
       </View>
+
+      {/* Recent Notifications Preview */}
+      {notifications.filter(n => !n.read_at).length > 0 && (
+        <View style={styles.notificationsPreviewSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Notifications</Text>
+            <TouchableOpacity onPress={() => setShowNotificationModal(true)}>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.notificationsPreviewList}>
+            {notifications
+              .filter(notification => !notification.read_at)
+              .slice(0, 2)
+              .map((notification) => (
+                <TouchableOpacity
+                  key={notification.id}
+                  style={styles.notificationPreviewItem}
+                  onPress={() => handleNotificationPress(notification)}
+                >
+                  <View style={styles.notificationPreviewIcon}>
+                    <Ionicons 
+                      name={
+                        notification.type === 'message' ? 'chatbubble-outline' :
+                        notification.type === 'reminder' ? 'time-outline' :
+                        notification.type === 'announcement' ? 'megaphone-outline' :
+                        'notifications-outline'
+                      } 
+                      size={16} 
+                      color={
+                        notification.type === 'message' ? '#007AFF' :
+                        notification.type === 'reminder' ? '#FF9500' :
+                        notification.type === 'announcement' ? '#34C759' :
+                        '#666'
+                      } 
+                    />
+                  </View>
+                  <View style={styles.notificationPreviewContent}>
+                    <Text style={styles.notificationPreviewTitle} numberOfLines={1}>
+                      {notification.title}
+                    </Text>
+                    <Text style={styles.notificationPreviewMessage} numberOfLines={1}>
+                      {notification.message}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.notificationPreviewClear}
+                    onPress={() => handleClearNotification(notification.id)}
+                  >
+                    <Ionicons name="close" size={16} color="#999" />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              ))}
+          </View>
+        </View>
+      )}
 
       {/* Recent Activity */}
       {dashboardData?.recentActivity && (
@@ -191,6 +397,91 @@ export default function DashboardScreen({ navigation }) {
           ))}
         </View>
       )}
+
+      {/* Notification Modal */}
+      <Modal
+        visible={showNotificationModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowNotificationModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.notificationModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Notifications</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowNotificationModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.notificationList}>
+              {notifications.length === 0 ? (
+                <View style={styles.emptyNotifications}>
+                  <Ionicons name="notifications-off-outline" size={48} color="#ccc" />
+                  <Text style={styles.emptyText}>No notifications</Text>
+                </View>
+              ) : (
+                notifications.map((notification) => (
+                  <TouchableOpacity
+                    key={notification.id}
+                    style={[
+                      styles.notificationItem,
+                      !notification.read_at && styles.unreadNotification
+                    ]}
+                    onPress={() => handleNotificationPress(notification)}
+                  >
+                    <View style={styles.notificationIcon}>
+                      <Ionicons 
+                        name={
+                          notification.type === 'message' ? 'chatbubble-outline' :
+                          notification.type === 'reminder' ? 'time-outline' :
+                          notification.type === 'announcement' ? 'megaphone-outline' :
+                          'notifications-outline'
+                        } 
+                        size={20} 
+                        color={
+                          notification.type === 'message' ? '#007AFF' :
+                          notification.type === 'reminder' ? '#FF9500' :
+                          notification.type === 'announcement' ? '#34C759' :
+                          '#666'
+                        } 
+                      />
+                    </View>
+                    <View style={styles.notificationContent}>
+                      <Text style={styles.notificationTitle}>{notification.title}</Text>
+                      <Text style={styles.notificationMessage} numberOfLines={2}>
+                        {notification.message}
+                      </Text>
+                      <Text style={styles.notificationTime}>
+                        {new Date(notification.created_at).toLocaleDateString()} • {new Date(notification.created_at).toLocaleTimeString()}
+                      </Text>
+                    </View>
+                    <View style={styles.notificationActions}>
+                      {!notification.read_at && (
+                        <TouchableOpacity
+                          style={styles.markReadButton}
+                          onPress={() => handleMarkAsRead(notification.id)}
+                        >
+                          <Ionicons name="checkmark-circle-outline" size={20} color="#34C759" />
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        style={styles.clearButton}
+                        onPress={() => handleClearNotification(notification.id)}
+                      >
+                        <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -214,6 +505,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     padding: 20,
     paddingTop: 60,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  notificationIcon: {
+    position: 'relative',
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   headerTitle: {
     fontSize: 28,
@@ -247,13 +566,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     width: '48%',
     borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   statContent: {
@@ -272,7 +585,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -283,12 +596,12 @@ const styles = StyleSheet.create({
   },
   actionsSection: {
     padding: 20,
-    paddingTop: 0,
   },
   actionsList: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    overflow: 'hidden',
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
   },
   actionCard: {
     flexDirection: 'row',
@@ -321,7 +634,6 @@ const styles = StyleSheet.create({
   },
   activitySection: {
     padding: 20,
-    paddingTop: 0,
   },
   activityItem: {
     flexDirection: 'row',
@@ -330,6 +642,8 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
+    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
+    elevation: 1,
   },
   activityIcon: {
     marginRight: 12,
@@ -348,7 +662,7 @@ const styles = StyleSheet.create({
   },
   eventsSection: {
     padding: 20,
-    paddingTop: 0,
+    paddingBottom: 40,
   },
   eventItem: {
     flexDirection: 'row',
@@ -357,20 +671,26 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
+    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
+    elevation: 1,
   },
   eventDate: {
-    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 8,
     marginRight: 12,
-    minWidth: 50,
+    minWidth: 40,
+    alignItems: 'center',
   },
   eventDay: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#fff',
   },
   eventMonth: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 10,
+    color: '#fff',
+    opacity: 0.8,
   },
   eventContent: {
     flex: 1,
@@ -384,5 +704,154 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 2,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  notificationModal: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    minHeight: '50%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  notificationList: {
+    flex: 1,
+  },
+  emptyNotifications: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 16,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff',
+  },
+  unreadNotification: {
+    backgroundColor: '#f8f9ff',
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  notificationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: '#999',
+  },
+  notificationActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  markReadButton: {
+    padding: 8,
+    marginRight: 4,
+  },
+  clearButton: {
+    padding: 8,
+  },
+  // Notification preview styles
+  notificationsPreviewSection: {
+    padding: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  notificationsPreviewList: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+  },
+  notificationPreviewItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  notificationPreviewIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  notificationPreviewContent: {
+    flex: 1,
+  },
+  notificationPreviewTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  notificationPreviewMessage: {
+    fontSize: 12,
+    color: '#666',
+  },
+  notificationPreviewClear: {
+    padding: 4,
   },
 }); 

@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Drop the existing table if it exists
+        Schema::dropIfExists('personal_access_tokens');
+        
+        // Recreate the table with the correct structure
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
             $table->morphs('tokenable');

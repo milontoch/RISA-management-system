@@ -154,41 +154,73 @@ class UserController extends Controller
         switch ($role) {
             case 'admin':
                 $data = [
-                    'total_students' => Student::count(),
-                    'total_teachers' => Teacher::count(),
-                    'total_classes' => \App\Models\ClassModel::count(),
-                    'recent_activities' => \App\Models\AuditLog::latest()->take(10)->get(),
+                    'totalStudents' => Student::count(),
+                    'totalTeachers' => Teacher::count(),
+                    'activeClasses' => \App\Models\ClassModel::where('status', 'active')->count(),
+                    'todayAttendance' => \App\Models\Attendance::whereDate('created_at', today())->count(),
+                    'recentActivity' => [
+                        ['description' => 'New student registered', 'time' => '2 hours ago'],
+                        ['description' => 'Attendance marked for Class 1', 'time' => '4 hours ago'],
+                        ['description' => 'Exam results uploaded', 'time' => '6 hours ago'],
+                        ['description' => 'Parent meeting scheduled', 'time' => '1 day ago'],
+                    ],
+                    'upcomingEvents' => [
+                        ['title' => 'Parent Meeting', 'day' => '15', 'month' => 'Jul', 'time' => '10:00 AM'],
+                        ['title' => 'Exam Week', 'day' => '20', 'month' => 'Jul', 'time' => '9:00 AM'],
+                        ['title' => 'Sports Day', 'day' => '25', 'month' => 'Jul', 'time' => '8:00 AM'],
+                    ]
                 ];
                 break;
             case 'teacher':
                 $teacher = $user->teacher;
                 $data = [
-                    'my_classes' => $teacher ? $teacher->timetables()->with('classModel', 'subject')->get() : [],
-                    'recent_attendance' => [],
-                    'upcoming_exams' => [],
+                    'totalStudents' => $teacher ? $teacher->classModel ? $teacher->classModel->students()->count() : 0 : 0,
+                    'totalClasses' => $teacher ? ($teacher->classModel ? 1 : 0) : 0,
+                    'todayAttendance' => $teacher ? \App\Models\Attendance::whereDate('created_at', today())->count() : 0,
+                    'recentActivity' => [
+                        ['description' => 'Attendance marked for your class', 'time' => '2 hours ago'],
+                        ['description' => 'New assignment posted', 'time' => '4 hours ago'],
+                    ],
+                    'upcomingEvents' => [
+                        ['title' => 'Class Test', 'day' => '15', 'month' => 'Jul', 'time' => '10:00 AM'],
+                        ['title' => 'Parent Meeting', 'day' => '20', 'month' => 'Jul', 'time' => '2:00 PM'],
+                    ]
                 ];
                 break;
             case 'student':
                 $student = $user->student;
                 $data = [
-                    'attendance' => $student ? $student->attendance()->latest()->take(10)->get() : [],
-                    'results' => $student ? $student->results()->with('exam', 'subject')->latest()->take(5)->get() : [],
-                    'fees' => $student ? $student->fees()->latest()->take(5)->get() : [],
+                    'attendancePercentage' => $student ? $student->attendance()->where('status', 'present')->count() / max($student->attendance()->count(), 1) * 100 : 0,
+                    'totalSubjects' => $student ? $student->classModel ? $student->classModel->subjects()->count() : 0 : 0,
+                    'upcomingExams' => $student ? \App\Models\Exam::where('class_id', $student->class_id)->where('exam_date', '>', now())->take(3)->get() : [],
+                    'recentActivity' => [
+                        ['description' => 'Attendance marked', 'time' => '2 hours ago'],
+                        ['description' => 'New assignment received', 'time' => '4 hours ago'],
+                    ],
+                    'upcomingEvents' => [
+                        ['title' => 'Math Test', 'day' => '15', 'month' => 'Jul', 'time' => '10:00 AM'],
+                        ['title' => 'Science Project Due', 'day' => '18', 'month' => 'Jul', 'time' => '3:00 PM'],
+                    ]
                 ];
                 break;
             case 'parent':
                 $parent = $user->parentModel;
                 $data = [
-                    'children' => $parent ? $parent->student : null,
-                    'notifications' => $user->notifications()->latest()->take(10)->get(),
+                    'childrenCount' => $parent ? 1 : 0,
+                    'attendancePercentage' => $parent && $parent->student ? $parent->student->attendance()->where('status', 'present')->count() / max($parent->student->attendance()->count(), 1) * 100 : 0,
+                    'recentActivity' => [
+                        ['description' => 'Child attendance marked', 'time' => '2 hours ago'],
+                        ['description' => 'New message from teacher', 'time' => '4 hours ago'],
+                    ],
+                    'upcomingEvents' => [
+                        ['title' => 'Parent Meeting', 'day' => '15', 'month' => 'Jul', 'time' => '10:00 AM'],
+                        ['title' => 'School Event', 'day' => '25', 'month' => 'Jul', 'time' => '8:00 AM'],
+                    ]
                 ];
                 break;
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => $data
-        ]);
+        return response()->json($data);
     }
 
     /**

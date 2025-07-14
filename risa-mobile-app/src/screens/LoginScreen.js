@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,14 +12,15 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation, onLogin }) {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const passwordInputRef = useRef(null);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -29,23 +30,21 @@ export default function LoginScreen({ navigation }) {
 
     setIsLoading(true);
     try {
-      const response = await api.login(email, password);
-      
-      if (response.token) {
-        await api.setToken(response.token);
-        // Store user data if needed
-        if (response.user) {
-          await AsyncStorage.setItem('user', JSON.stringify(response.user));
-        }
-        // Navigation will be handled by App.js when isAuthenticated changes
-      } else {
-        Alert.alert('Error', 'Invalid login response');
-      }
+      // Use the login function from AuthContext
+      await login(email, password);
     } catch (error) {
       Alert.alert('Login Failed', error.message || 'Please check your credentials');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleForgotPassword = () => {
+    Alert.alert('Forgot Password', 'Please contact your administrator to reset your password.');
+  };
+
+  const handleContactAdmin = () => {
+    Alert.alert('Contact Administrator', 'Please contact your school administrator to create an account.');
   };
 
   return (
@@ -55,7 +54,9 @@ export default function LoginScreen({ navigation }) {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
+          <View style={styles.logoWrapper}>
           <Ionicons name="school" size={80} color="#007AFF" />
+          </View>
           <Text style={styles.title}>RISA Management System</Text>
           <Text style={styles.subtitle}>Sign in to your account</Text>
         </View>
@@ -71,18 +72,23 @@ export default function LoginScreen({ navigation }) {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordInputRef.current?.focus()}
             />
           </View>
 
           <View style={styles.inputContainer}>
             <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
+              ref={passwordInputRef}
               style={styles.input}
               placeholder="Password"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
             />
             <TouchableOpacity
               style={styles.eyeIcon}
@@ -108,7 +114,10 @@ export default function LoginScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity 
+            style={styles.forgotPassword}
+            onPress={handleForgotPassword}
+          >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
@@ -116,8 +125,17 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             Don't have an account?{' '}
+            <TouchableOpacity onPress={handleContactAdmin}>
             <Text style={styles.linkText}>Contact Administrator</Text>
+            </TouchableOpacity>
           </Text>
+        </View>
+
+        <View style={styles.credentialsInfo}>
+          <Text style={styles.credentialsTitle}>Test Credentials:</Text>
+          <Text style={styles.credentialItem}>Admin: admin@risa.edu / admin123</Text>
+          <Text style={styles.credentialItem}>Teacher: teacher@risa.edu / teacher123</Text>
+          <Text style={styles.credentialItem}>Parent: parent@risa.edu / parent123</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -138,11 +156,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
+  logoWrapper: {
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 50,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    marginTop: 16,
+    marginTop: 20,
     textAlign: 'center',
   },
   subtitle: {
@@ -154,14 +179,8 @@ const styles = StyleSheet.create({
   formContainer: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    padding: 25,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
   inputContainer: {
@@ -222,5 +241,24 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#007AFF',
     fontWeight: '600',
+  },
+  credentialsInfo: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 15,
+    marginTop: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  credentialsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  credentialItem: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
   },
 }); 

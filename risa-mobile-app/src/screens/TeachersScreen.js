@@ -11,34 +11,36 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
 
-export default function ExamsScreen({ navigation }) {
-  const [exams, setExams] = useState([]);
+export default function TeachersScreen({ navigation }) {
+  const [teachers, setTeachers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadExams();
+    loadTeachers();
   }, []);
 
-  const loadExams = async () => {
+  const loadTeachers = async () => {
     try {
-      const data = await api.getExams();
-      // Handle paginated or array response
-      const examsArray = Array.isArray(data) ? data : (data.data || []);
-      setExams(examsArray);
+      const response = await api.getTeachers();
+      const teachersData = Array.isArray(response) ? response : (response.data || []);
+      setTeachers(teachersData);
     } catch (error) {
-      console.error('Error loading exams:', error);
-      Alert.alert('Error', 'Failed to load exams');
+      console.error('Error loading teachers:', error);
+      Alert.alert('Error', 'Failed to load teachers');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const renderExam = ({ item }) => (
-    <TouchableOpacity style={styles.examCard}>
-      <View style={styles.examInfo}>
-        <Text style={styles.examTitle}>{item.name || ''}</Text>
-        <Text style={styles.examDate}>{item.date || ''}</Text>
+  const renderTeacher = ({ item }) => (
+    <TouchableOpacity style={styles.teacherCard}>
+      <View style={styles.teacherInfo}>
+        <Text style={styles.teacherName}>{item.user?.name || 'Unknown'}</Text>
+        <Text style={styles.teacherSubject}>{item.subject?.name || 'No Subject'}</Text>
+        <Text style={styles.teacherQualification}>{item.qualification || 'No Qualification'}</Text>
+        <Text style={styles.teacherExperience}>{item.experience_years || 0} years experience</Text>
       </View>
+      <Ionicons name="chevron-forward" size={20} color="#ccc" />
     </TouchableOpacity>
   );
 
@@ -46,7 +48,7 @@ export default function ExamsScreen({ navigation }) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading Exams...</Text>
+        <Text style={styles.loadingText}>Loading Teachers...</Text>
       </View>
     );
   }
@@ -54,15 +56,15 @@ export default function ExamsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Exams</Text>
+        <Text style={styles.headerTitle}>Teachers</Text>
         <TouchableOpacity style={styles.addButton}>
           <Ionicons name="add" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={exams}
-        renderItem={renderExam}
+        data={teachers}
+        renderItem={renderTeacher}
         keyExtractor={(item) => item.id?.toString()}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
@@ -111,9 +113,8 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 20,
   },
-  examCard: {
+  teacherCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#fff',
     padding: 16,
@@ -122,30 +123,27 @@ const styles = StyleSheet.create({
     boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
-  examInfo: {
+  teacherInfo: {
     flex: 1,
   },
-  examTitle: {
+  teacherName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
   },
-  examSubject: {
+  teacherSubject: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  examDate: {
-    fontSize: 12,
     color: '#007AFF',
     marginTop: 2,
   },
-  examStatus: {
-    alignItems: 'flex-end',
+  teacherQualification: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
-  status: {
-    fontSize: 14,
-    fontWeight: '600',
-    textTransform: 'capitalize',
+  teacherExperience: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 2,
   },
 }); 

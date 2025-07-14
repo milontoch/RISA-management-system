@@ -36,11 +36,7 @@ class TeacherController extends Controller
             
             $teachers = $query->orderBy('name')->paginate(10);
             
-            return response()->json([
-                'success' => true,
-                'data' => $teachers,
-                'message' => 'Teachers retrieved successfully'
-            ]);
+            return response()->json($teachers);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

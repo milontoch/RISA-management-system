@@ -9,6 +9,10 @@ use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\ClassController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\ExamController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\MessageController;
+use App\Http\Controllers\ResultController;
+use App\Http\Controllers\FeeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,7 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [UserController::class, 'logout']);
     Route::get('/profile', [UserController::class, 'profile']);
     Route::put('/profile', [UserController::class, 'updateProfile']);
-    Route::get('/dashboard', [UserController::class, 'dashboard']);
+    Route::get('/dashboard/{role}', [UserController::class, 'dashboard']);
     
     // User resource routes
     Route::apiResource('users', UserController::class);
@@ -76,4 +80,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/exams/upcoming', [ExamController::class, 'getUpcoming']);
     Route::get('/exams/class/{classId}', [ExamController::class, 'getByClass']);
     Route::get('/exams/{exam}/statistics', [ExamController::class, 'getStatistics']);
+    
+    // Notification management
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/{id}', [NotificationController::class, 'show']);
+    Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
+    
+    // Message management
+    Route::apiResource('messages', MessageController::class);
+    
+    // Results management
+    Route::apiResource('results', ResultController::class);
+    
+    // Fees management
+    Route::apiResource('fees', FeeController::class);
 }); 

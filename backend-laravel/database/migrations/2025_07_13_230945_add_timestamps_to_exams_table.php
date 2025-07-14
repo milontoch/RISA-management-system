@@ -11,11 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('sections', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('class_id');
-            $table->string('name', 50);
-            $table->foreign('class_id')->references('id')->on('classes')->onDelete('cascade');
+        Schema::table('exams', function (Blueprint $table) {
             $table->timestamps();
         });
     }
@@ -25,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('sections');
+        Schema::table('exams', function (Blueprint $table) {
+            $table->dropTimestamps();
+        });
     }
 };

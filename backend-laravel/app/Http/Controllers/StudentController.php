@@ -30,10 +30,7 @@ class StudentController extends Controller
             })
             ->paginate(15);
 
-        return response()->json([
-            'success' => true,
-            'data' => $students
-        ]);
+        return response()->json($students);
     }
 
     /**
@@ -83,10 +80,7 @@ class StudentController extends Controller
         $student = Student::with(['user', 'classModel', 'section', 'attendance', 'results', 'fees'])
             ->findOrFail($id);
 
-        return response()->json([
-            'success' => true,
-            'data' => $student
-        ]);
+        return response()->json($student);
     }
 
     /**
