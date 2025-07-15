@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('emergency_contact')->nullable();
             $table->date('admission_date')->nullable();
             $table->string('status')->default('active');
+            $table->string('academic_year', 20)->nullable();
             $table->timestamps();
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('class_id')->references('id')->on('classes')->onDelete('set null');

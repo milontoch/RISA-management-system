@@ -7,6 +7,9 @@ use App\Models\Student;
 use App\Models\User;
 use App\Models\ClassModel;
 use App\Models\Section;
+use App\Models\Result;
+use App\Models\Attendance;
+use Illuminate\Support\Carbon;
 
 class StudentController extends Controller
 {
@@ -30,7 +33,16 @@ class StudentController extends Controller
             })
             ->paginate(15);
 
-        return response()->json($students);
+        return response()->json([
+            'success' => true,
+            'data' => $students->items(),
+            'meta' => [
+                'current_page' => $students->currentPage(),
+                'per_page' => $students->perPage(),
+                'total' => $students->total(),
+                'last_page' => $students->lastPage(),
+            ]
+        ]);
     }
 
     /**
@@ -80,7 +92,10 @@ class StudentController extends Controller
         $student = Student::with(['user', 'classModel', 'section', 'attendance', 'results', 'fees'])
             ->findOrFail($id);
 
-        return response()->json($student);
+        return response()->json([
+            'success' => true,
+            'data' => $student
+        ]);
     }
 
     /**
@@ -129,5 +144,61 @@ class StudentController extends Controller
             'success' => true,
             'message' => 'Student deleted successfully'
         ]);
+    }
+
+    /**
+     * Promote students based on average score for the academic year.
+     */
+    public function promoteStudents(Request $request)
+    {
+        $year = $request->input('academic_year');
+        $nextYear = $year ? ((int)$year + 1) : null;
+        $students = Student::with(['results', 'classModel'])->get();
+        $promoted = 0;
+        foreach ($students as $student) {
+            $results = $student->results()->where('academic_year', $year)->get();
+            if ($results->count() === 0) continue;
+            $avg = $results->avg(function($r) { return $r->marks_obtained / max($r->total_marks, 1) * 100; });
+            if ($avg >= 60) {
+                // Find next class (by id increment, or custom logic)
+                $nextClass = ClassModel::where('id', '>', $student->class_id)->orderBy('id')->first();
+                if ($nextClass) {
+                    $student->class_id = $nextClass->id;
+                    $student->academic_year = $nextYear;
+                    $student->save();
+                    $promoted++;
+                }
+            } else {
+                $student->academic_year = $nextYear;
+                $student->save();
+            }
+        }
+        return response()->json(['success' => true, 'message' => "Promotion complete", 'promoted' => $promoted]);
+    }
+
+    /**
+     * Mark students as inactive if no attendance in last 30 days.
+     */
+    public function checkInactivity(Request $request)
+    {
+        $now = Carbon::now();
+        $students = Student::all();
+        $inactive = 0;
+        foreach ($students as $student) {
+            $lastAttendance = Attendance::where('student_id', $student->id)->orderBy('date', 'desc')->first();
+            if (!$lastAttendance || Carbon::parse($lastAttendance->date)->diffInDays($now) > 30) {
+                if ($student->status !== 'inactive') {
+                    $student->status = 'inactive';
+                    $student->save();
+                    $inactive++;
+                }
+            } else {
+                if ($student->status !== 'active') {
+                    $student->status = 'active';
+                    $student->save();
+                }
+            }
+        }
+        return response()->json(['success' => true, 'message' => "Inactivity check complete", 'inactive' => $inactive]);
     }
 }

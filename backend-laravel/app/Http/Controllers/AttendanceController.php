@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\ClassModel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class AttendanceController extends Controller
 {
@@ -15,6 +16,13 @@ class AttendanceController extends Controller
      */
     public function index(Request $request)
     {
+        $user = Auth::user();
+        if ($user->role === 'teacher' && $request->has('class_id')) {
+            $class = ClassModel::find($request->class_id);
+            if (!$class || $class->head_teacher_id !== $user->id) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
+        }
         $attendance = Attendance::with(['student.user', 'student.classModel', 'student.section'])
             ->when($request->student_id, function ($query, $studentId) {
                 return $query->where('student_id', $studentId);
@@ -41,6 +49,14 @@ class AttendanceController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+        $student = Student::find($request->student_id);
+        if ($user->role === 'teacher' && $student) {
+            $class = $student->classModel;
+            if (!$class || $class->head_teacher_id !== $user->id) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
+        }
         $request->validate([
             'student_id' => 'required|exists:students,id',
             'date' => 'required|date',
@@ -120,6 +136,11 @@ class AttendanceController extends Controller
      */
     public function markBulkAttendance(Request $request)
     {
+        $user = Auth::user();
+        $class = ClassModel::find($request->class_id);
+        if ($user->role === 'teacher' && (!$class || $class->head_teacher_id !== $user->id)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
         $request->validate([
             'class_id' => 'required|exists:classes,id',
             'date' => 'required|date',
@@ -169,6 +190,11 @@ class AttendanceController extends Controller
      */
     public function getStudentsForAttendance(Request $request)
     {
+        $user = Auth::user();
+        $class = ClassModel::find($request->class_id);
+        if ($user->role === 'teacher' && (!$class || $class->head_teacher_id !== $user->id)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
         $request->validate([
             'class_id' => 'required|exists:classes,id',
             'date' => 'required|date',
@@ -197,6 +223,13 @@ class AttendanceController extends Controller
      */
     public function generateReport(Request $request)
     {
+        $user = Auth::user();
+        if ($user->role === 'teacher' && $request->has('class_id')) {
+            $class = ClassModel::find($request->class_id);
+            if (!$class || $class->head_teacher_id !== $user->id) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
+        }
         $request->validate([
             'student_id' => 'nullable|exists:students,id',
             'class_id' => 'nullable|exists:classes,id',

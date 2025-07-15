@@ -18,6 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('subject_id');
             $table->float('marks_obtained');
             $table->float('total_marks');
+            $table->string('academic_year', 20)->nullable();
             $table->foreign('student_id')->references('id')->on('students')->onDelete('cascade');
             $table->foreign('exam_id')->references('id')->on('exams')->onDelete('cascade');
             $table->foreign('subject_id')->references('id')->on('subjects')->onDelete('cascade');

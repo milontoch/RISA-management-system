@@ -48,7 +48,7 @@ class ResultController extends Controller
             // Students can see their own results
             $student = $user->student;
             if ($student) {
-                $results = Result::with(['exam', 'subject'])
+                $results = Result::with(['student.user', 'exam', 'subject'])
                     ->where('student_id', $student->id)
                     ->orderBy('created_at', 'desc')
                     ->paginate(15);
@@ -64,7 +64,16 @@ class ResultController extends Controller
             }
         }
 
-        return response()->json($results);
+        return response()->json([
+            'success' => true,
+            'data' => $results->items(),
+            'meta' => [
+                'current_page' => $results->currentPage(),
+                'per_page' => $results->perPage(),
+                'total' => $results->total(),
+                'last_page' => $results->lastPage(),
+            ]
+        ]);
     }
 
     /**

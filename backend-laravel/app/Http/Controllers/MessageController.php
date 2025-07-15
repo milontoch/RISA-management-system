@@ -14,9 +14,17 @@ class MessageController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $messages = $user->receivedMessages()->latest()->get();
-        
-        return response()->json($messages);
+        $messages = $user->receivedMessages()->latest()->paginate(15);
+        return response()->json([
+            'success' => true,
+            'data' => $messages->items(),
+            'meta' => [
+                'current_page' => $messages->currentPage(),
+                'per_page' => $messages->perPage(),
+                'total' => $messages->total(),
+                'last_page' => $messages->lastPage(),
+            ]
+        ]);
     }
 
     /**

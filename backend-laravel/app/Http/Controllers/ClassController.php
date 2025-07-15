@@ -39,7 +39,13 @@ class ClassController extends Controller
             
             return response()->json([
                 'success' => true,
-                'data' => $classes,
+                'data' => $classes->items(),
+                'meta' => [
+                    'current_page' => $classes->currentPage(),
+                    'per_page' => $classes->perPage(),
+                    'total' => $classes->total(),
+                    'last_page' => $classes->lastPage(),
+                ],
                 'message' => 'Classes retrieved successfully'
             ]);
         } catch (\Exception $e) {
@@ -368,5 +374,30 @@ class ClassController extends Controller
                 'message' => 'Failed to retrieve active classes: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Assign a head teacher to a class
+     */
+    public function assignHeadTeacher(Request $request, $classId): JsonResponse
+    {
+        $request->validate([
+            'teacher_id' => 'required|exists:users,id',
+        ]);
+        $class = ClassModel::findOrFail($classId);
+        $class->head_teacher_id = $request->teacher_id;
+        $class->save();
+        return response()->json(['success' => true, 'message' => 'Head teacher assigned successfully.']);
+    }
+
+    /**
+     * Unassign the head teacher from a class
+     */
+    public function unassignHeadTeacher($classId): JsonResponse
+    {
+        $class = ClassModel::findOrFail($classId);
+        $class->head_teacher_id = null;
+        $class->save();
+        return response()->json(['success' => true, 'message' => 'Head teacher unassigned successfully.']);
     }
 }

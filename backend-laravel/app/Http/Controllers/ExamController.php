@@ -52,7 +52,17 @@ class ExamController extends Controller
             
             $exams = $query->orderBy('exam_date', 'desc')->paginate(10);
             
-            return response()->json($exams);
+            return response()->json([
+                'success' => true,
+                'data' => $exams->items(),
+                'meta' => [
+                    'current_page' => $exams->currentPage(),
+                    'per_page' => $exams->perPage(),
+                    'total' => $exams->total(),
+                    'last_page' => $exams->lastPage(),
+                ],
+                'message' => 'Exams retrieved successfully'
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

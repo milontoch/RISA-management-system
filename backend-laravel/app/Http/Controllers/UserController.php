@@ -31,6 +31,13 @@ class UserController extends Controller
             ]);
         }
 
+        // Only allow login for admin and teacher
+        if (!in_array($user->role, ['admin', 'teacher'])) {
+            throw ValidationException::withMessages([
+                'email' => ['Login is only allowed for admin and teacher users.'],
+            ]);
+        }
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
@@ -52,7 +59,7 @@ class UserController extends Controller
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:admin,teacher,student,parent',
+            'role' => 'required|in:admin,teacher', // Only admin and teacher allowed
         ]);
 
         $user = User::create([
@@ -236,7 +243,13 @@ class UserController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $users
+            'data' => $users->items(),
+            'meta' => [
+                'current_page' => $users->currentPage(),
+                'per_page' => $users->perPage(),
+                'total' => $users->total(),
+                'last_page' => $users->lastPage(),
+            ]
         ]);
     }
 
@@ -245,16 +258,18 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        if (!$request->user() || $request->user()->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized. Only admin can create users.'], 403);
+        }
         $request->validate([
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:admin,teacher,student,parent',
+            'role' => 'required|in:teacher', // Only allow teacher creation
             'profile_picture' => 'nullable|string',
             'is_class_teacher' => 'boolean',
             'class_teacher_of' => 'nullable|exists:classes,id',
         ]);
-
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -264,7 +279,6 @@ class UserController extends Controller
             'is_class_teacher' => $request->is_class_teacher ?? false,
             'class_teacher_of' => $request->class_teacher_of,
         ]);
-
         return response()->json([
             'success' => true,
             'message' => 'User created successfully',

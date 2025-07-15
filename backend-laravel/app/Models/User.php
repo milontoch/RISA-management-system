@@ -51,6 +51,29 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Valid user roles
+     */
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_TEACHER = 'teacher';
+    // No student/parent as user roles
+
+    /**
+     * Check if user is admin
+     */
+    public function isAdmin()
+    {
+        return $this->role === self::ROLE_ADMIN;
+    }
+
+    /**
+     * Check if user is teacher
+     */
+    public function isTeacher()
+    {
+        return $this->role === self::ROLE_TEACHER;
+    }
+
     public function student()
     {
         return $this->hasOne(Student::class);
@@ -86,5 +109,15 @@ class User extends Authenticatable
     public function userSettings()
     {
         return $this->hasMany(UserSetting::class);
+    }
+    // Add classes relationship for teachers
+    public function classes()
+    {
+        return $this->hasMany(ClassModel::class, 'teacher_id');
+    }
+
+    public function headedClasses()
+    {
+        return $this->hasMany(ClassModel::class, 'head_teacher_id');
     }
 }

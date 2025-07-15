@@ -27,4 +27,8 @@ class ClassModel extends Model
     {
         return $this->hasMany(Timetable::class, 'class_id');
     }
+    public function headTeacher()
+    {
+        return $this->belongsTo(User::class, 'head_teacher_id');
+    }
 }

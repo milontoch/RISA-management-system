@@ -50,7 +50,16 @@ class FeeController extends Controller
             }
         }
 
-        return response()->json($fees);
+        return response()->json([
+            'success' => true,
+            'data' => $fees->items(),
+            'meta' => [
+                'current_page' => $fees->currentPage(),
+                'per_page' => $fees->perPage(),
+                'total' => $fees->total(),
+                'last_page' => $fees->lastPage(),
+            ]
+        ]);
     }
 
     /**

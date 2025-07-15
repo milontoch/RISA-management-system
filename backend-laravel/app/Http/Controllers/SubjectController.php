@@ -33,7 +33,13 @@ class SubjectController extends Controller
             
             return response()->json([
                 'success' => true,
-                'data' => $subjects,
+                'data' => $subjects->items(),
+                'meta' => [
+                    'current_page' => $subjects->currentPage(),
+                    'per_page' => $subjects->perPage(),
+                    'total' => $subjects->total(),
+                    'last_page' => $subjects->lastPage(),
+                ],
                 'message' => 'Subjects retrieved successfully'
             ]);
         } catch (\Exception $e) {

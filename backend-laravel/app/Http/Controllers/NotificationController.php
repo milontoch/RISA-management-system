@@ -14,9 +14,17 @@ class NotificationController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $notifications = $user->notifications()->latest()->get();
-        
-        return response()->json($notifications);
+        $notifications = $user->notifications()->latest()->paginate(15);
+        return response()->json([
+            'success' => true,
+            'data' => $notifications->items(),
+            'meta' => [
+                'current_page' => $notifications->currentPage(),
+                'per_page' => $notifications->perPage(),
+                'total' => $notifications->total(),
+                'last_page' => $notifications->lastPage(),
+            ]
+        ]);
     }
 
     /**
