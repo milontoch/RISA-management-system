@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from './auth.jsx';
 import apiService from './services/api';
+import ExportButtons from "./components/ExportButtons";
 
 export default function AttendancePage() {
   const { user } = useAuth();
@@ -63,6 +64,8 @@ export default function AttendancePage() {
           <h3 className="text-lg font-semibold mb-2">Attendance Report</h3>
           <div className="bg-white border rounded shadow p-4 text-gray-500">[Attendance report will go here]</div>
         </div>
+        {/* Optional: Export buttons for attendance */}
+        <ExportButtons tableId="attendance-table" filename="attendance.csv" />
       </div>
     );
   }

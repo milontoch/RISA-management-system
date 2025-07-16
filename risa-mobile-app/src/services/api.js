@@ -1,10 +1,41 @@
 // API Service for Laravel Backend - React Native Version
 import config from '../config';
+import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
+import axios from "axios";
+
+const errorSubscribers = [];
+export function subscribeToApiErrors(fn) {
+  errorSubscribers.push(fn);
+}
+function notifyErrorSubscribers(error) {
+  errorSubscribers.forEach(fn => fn(error));
+}
+
+const api = axios.create({
+  baseURL: config.api.baseURL,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+});
+
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      if (global.handleSessionExpiry) global.handleSessionExpiry();
+    }
+    return Promise.reject(error);
+  }
+);
 
 class ApiService {
   constructor() {
     this.baseURL = config.api.baseURL;
     this.token = null;
+    this.navigation = useNavigation();
   }
 
   setToken(token) {
@@ -32,16 +63,48 @@ class ApiService {
     };
 
     try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      const response = await api.request({ url, ...config });
+      let data = null;
+      try {
+        data = response.data;
+      } catch (e) {
+        data = {};
       }
-      
-      return await response.json();
+      if (!response.data) { // Use response.data for axios
+        let code = response.status;
+        let message = 'Something went wrong. Please try again later.';
+        let validation = null;
+        if (code === 401 || code === 403) {
+          message = 'Session expired. Please log in again.';
+          Toast.show({ type: 'error', text1: message });
+          notifyErrorSubscribers({ code, message });
+          // Clear auth and navigate to login
+          if (typeof AsyncStorage !== 'undefined') {
+            await AsyncStorage.multiRemove(['user', 'token']);
+          }
+          if (typeof this.navigation !== 'undefined') {
+            this.navigation.reset({ index: 0, routes: [{ name: 'LoginScreen' }] });
+          }
+        } else if (code === 422) {
+          message = response.data.message || 'Validation error.';
+          Toast.show({ type: 'error', text1: message });
+          notifyErrorSubscribers({ code, message, validation });
+        } else if (code >= 500) {
+          message = 'Something went wrong. Please try again later.';
+          Toast.show({ type: 'error', text1: message });
+          notifyErrorSubscribers({ code, message });
+        }
+        throw { code, message, validation, data };
+      }
+      return data;
     } catch (error) {
-      console.error('API request failed:', error);
+      if (error.code === undefined && error.message === 'Network request failed') {
+        Toast.show({ type: 'error', text1: 'You are offline.' });
+        notifyErrorSubscribers({ code: 'network', message: 'You are offline.' });
+      } else {
+        Toast.show({ type: 'error', text1: error.message || 'Something went wrong.' });
+        notifyErrorSubscribers(error);
+      }
       throw error;
     }
   }
@@ -320,14 +383,14 @@ class ApiService {
     };
 
     try {
-      const response = await fetch(url, config);
+      const response = await api.request({ url, ...config });
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+      if (!response.data) { // Use response.data for axios
+        const errorData = response.data || {};
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
       
-      return await response.json();
+      return response.data;
     } catch (error) {
       console.error('Document upload failed:', error);
       throw error;

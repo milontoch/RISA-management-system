@@ -6,7 +6,7 @@ import apiService from './services/api';
 const roleConfigs = {
   admin: {
     color: 'bg-blue-600',
-    header: 'Admin Dashboard',
+    header: 'School Control Center',
     nav: [
       { label: 'Manage Users', to: '/users' },
       { label: 'Classes', to: '/classes' },
@@ -26,7 +26,7 @@ const roleConfigs = {
   },
   teacher: {
     color: 'bg-green-600',
-    header: 'Teacher Dashboard',
+    header: 'Teaching Hub',
     nav: [
       { label: 'My Classes', to: '/my-classes' },
       { label: 'My Subjects', to: '/my-subjects' },
@@ -39,6 +39,20 @@ const roleConfigs = {
       { label: 'My Classes', value: '...' },
       { label: 'My Subjects', value: '...' },
       { label: 'Total Students', value: '...' },
+    ],
+  },
+  head_teacher: {
+    color: 'bg-indigo-700',
+    header: 'Attendance & Leadership',
+    nav: [
+      { label: 'My Classes', to: '/my-classes' },
+      { label: 'Attendance', to: '/attendance' },
+      { label: 'Reports', to: '/reports' },
+      { label: 'Messages', to: '/messages' },
+    ],
+    summary: [
+      { label: 'My Classes', value: '...' },
+      { label: 'Attendance %', value: '...' },
     ],
   },
   student: {
@@ -103,7 +117,11 @@ export default function Dashboard() {
     return null;
   }
 
-  const config = roleConfigs[user.role] || roleConfigs['student'];
+  let config = roleConfigs[user.role] || roleConfigs['student'];
+  // If teacher and is_head_teacher, use head_teacher config
+  if (user.role === 'teacher' && user.is_head_teacher) {
+    config = roleConfigs['head_teacher'];
+  }
   
   const handleLogout = () => {
     logout();
@@ -112,7 +130,7 @@ export default function Dashboard() {
 
   return (
     <div className={`min-h-screen flex flex-col bg-gray-50 ${config.color}/10`}>
-      <header className={`${config.color} text-white py-6 shadow-md`}> 
+      <header className={`${config.color} text-white py-6 shadow-md`}>
         <div className="container mx-auto flex justify-between items-center px-4">
           <h2 className="text-2xl font-bold">{config.header}</h2>
           <div className="flex items-center gap-4">

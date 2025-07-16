@@ -1,435 +1,242 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-  ActivityIndicator,
-  Alert,
-  TextInput,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import api from '../services/api';
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Switch, Share, Button } from 'react-native';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../context/AuthContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
-export default function AttendanceScreen({ navigation }) {
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+const API_BASE = require('../config').default.api.baseURL;
+
+const api = axios.create({
+  baseURL: API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+});
+
+api.interceptors.request.use(config => {
+  AsyncStorage.getItem('token').then(token => {
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  });
+  return config;
+});
+
+// Optional: Share attendance as CSV/text
+function shareAttendance(attendance) {
+  if (!attendance || !attendance.length) return;
+  const header = "Date,Status,Time,Remark";
+  const rows = attendance.map(a => [a.date, a.status, a.time || "", a.remark || ""].join(","));
+  const csv = [header, ...rows].join("\n");
+  Share.share({ message: csv });
+}
+
+export default function AttendanceScreen() {
+  const { user } = useAuth();
+  const [assignedClass, setAssignedClass] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [attendance, setAttendance] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [history, setHistory] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [offline, setOffline] = useState(false);
 
+  // Check network status
   useEffect(() => {
-    loadAttendance();
-  }, [selectedDate]);
+    const checkConnection = async () => {
+      try {
+        await axios.get('https://www.google.com');
+        setOffline(false);
+      } catch {
+        setOffline(true);
+      }
+    };
+    checkConnection();
+  }, []);
 
-  const loadAttendance = async () => {
+  // Load assigned class
+  useEffect(() => {
+    const fetchClass = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const res = await api.get('/classes');
+        const classes = res.data.data;
+        const myClass = classes.find(c => c.head_teacher_id === user.id);
+        if (!myClass) throw new Error('No assigned class found.');
+        setAssignedClass(myClass);
+      } catch (err) {
+        setError('Failed to load assigned class.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (user && user.id) fetchClass();
+  }, [user]);
+
+  // Load students for class and today's attendance
+  useEffect(() => {
+    const fetchStudents = async () => {
+      if (!assignedClass) return;
+      setLoading(true);
+      setError('');
+      try {
+        const res = await api.get(`/classes/${assignedClass.id}/students`);
+        setStudents(res.data.data);
+        // Load today's attendance if exists
+        const today = date.toISOString().slice(0, 10);
+        const attRes = await api.get(`/attendance?class_id=${assignedClass.id}&date=${today}`);
+        const attData = attRes.data.data || [];
+        const attMap = {};
+        attData.forEach(a => {
+          attMap[a.student_id] = a.status;
+        });
+        setAttendance(attMap);
+      } catch (err) {
+        setError('Failed to load students or attendance.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStudents();
+  }, [assignedClass, date]);
+
+  // Load attendance history for selected date
+  const fetchHistory = async (selectedDate) => {
+    if (!assignedClass) return;
+    setLoading(true);
+    setError('');
     try {
-      const data = await api.getAttendance(selectedDate);
-      setAttendanceData(data);
-    } catch (error) {
-      console.error('Error loading attendance:', error);
-      // Set default data if API fails
-      setAttendanceData([
-        {
-          id: 1,
-          student_id: 1,
-          student_name: 'John Doe',
-          class: 'Class 1',
-          roll_number: '001',
-          date: selectedDate,
-          status: 'present',
-          time_in: '08:30',
-          time_out: '15:30',
-        },
-        {
-          id: 2,
-          student_id: 2,
-          student_name: 'Jane Smith',
-          class: 'Class 2',
-          roll_number: '002',
-          date: selectedDate,
-          status: 'absent',
-          time_in: null,
-          time_out: null,
-        },
-      ]);
+      const d = selectedDate || date;
+      const res = await api.get(`/attendance?class_id=${assignedClass.id}&date=${d.toISOString().slice(0, 10)}`);
+      setHistory(res.data.data || []);
+    } catch (err) {
+      setError('Failed to load attendance history.');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  // Handle toggle present/absent
+  const toggleAttendance = (studentId) => {
+    setAttendance(prev => ({
+      ...prev,
+      [studentId]: prev[studentId] === 'present' ? 'absent' : 'present',
+    }));
+  };
+
+  // Submit attendance
+  const handleSubmit = async () => {
+    if (offline) {
+      Alert.alert('Offline', 'You are offline. Attendance will be saved locally and submitted when online.');
+      await AsyncStorage.setItem('pendingAttendance', JSON.stringify({ class_id: assignedClass.id, date: date.toISOString().slice(0, 10), attendance_data: Object.entries(attendance).map(([student_id, status]) => ({ student_id: Number(student_id), status })) }));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload = {
+        class_id: assignedClass.id,
+        date: date.toISOString().slice(0, 10),
+        attendance_data: students.map(s => ({ student_id: s.id, status: attendance[s.id] || 'absent' })),
+      };
+      await api.post('/attendance/bulk', payload);
+      Alert.alert('Success', 'Attendance submitted successfully!');
+      fetchHistory();
+    } catch (err) {
+      Alert.alert('Error', 'Failed to submit attendance.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Refresh handler
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadAttendance();
+    await fetchHistory();
     setRefreshing(false);
   };
 
-  const filteredAttendance = attendanceData.filter(item =>
-    item.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.roll_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.class.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleMarkAttendance = async (studentId, status) => {
-    try {
-      await api.markAttendance({
-        student_id: studentId,
-        date: selectedDate,
-        status: status,
-      });
-      
-      // Update local state
-      setAttendanceData(prevData =>
-        prevData.map(item =>
-          item.student_id === studentId
-            ? { ...item, status: status }
-            : item
-        )
-      );
-      
-      Alert.alert('Success', 'Attendance marked successfully');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to mark attendance');
-    }
+  // Date picker
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) setDate(selectedDate);
   };
 
-  const handleBulkMarkAttendance = () => {
-    Alert.alert('Bulk Mark Attendance', 'This feature will be implemented soon.');
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'present':
-        return '#34C759';
-      case 'absent':
-        return '#FF3B30';
-      case 'late':
-        return '#FF9500';
-      default:
-        return '#999';
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'present':
-        return 'Present';
-      case 'absent':
-        return 'Absent';
-      case 'late':
-        return 'Late';
-      default:
-        return 'Not Marked';
-    }
-  };
-
-  const renderAttendanceItem = ({ item }) => (
-    <View style={styles.attendanceCard}>
-      <View style={styles.studentInfo}>
-        <View style={styles.studentHeader}>
-          <Text style={styles.studentName}>{item.student_name}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-            <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
-          </View>
-        </View>
-        <Text style={styles.studentDetails}>
-          Class: {item.class} | Roll: {item.roll_number}
-        </Text>
-        {item.time_in && (
-          <Text style={styles.timeInfo}>
-            Time: {item.time_in} - {item.time_out || 'Not checked out'}
+  // Render student row
+  const renderStudent = ({ item }) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderColor: '#eee', justifyContent: 'space-between' }}>
+      <Text style={{ fontSize: 16 }}>{item.user?.name}</Text>
+      <Switch
+        value={attendance[item.id] === 'present'}
+        onValueChange={() => toggleAttendance(item.id)}
+      />
+      <Text style={{ color: attendance[item.id] === 'present' ? 'green' : 'red', marginLeft: 10 }}>
+        {attendance[item.id] === 'present' ? 'Present' : 'Absent'}
           </Text>
-        )}
-      </View>
-      
-      <View style={styles.attendanceActions}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.presentButton]}
-          onPress={() => handleMarkAttendance(item.student_id, 'present')}
-        >
-          <Ionicons name="checkmark" size={16} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.absentButton]}
-          onPress={() => handleMarkAttendance(item.student_id, 'absent')}
-        >
-          <Ionicons name="close" size={16} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.lateButton]}
-          onPress={() => handleMarkAttendance(item.student_id, 'late')}
-        >
-          <Ionicons name="time" size={16} color="#fff" />
-        </TouchableOpacity>
-      </View>
     </View>
   );
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading Attendance...</Text>
-      </View>
-    );
-  }
-
-  const presentCount = attendanceData.filter(item => item.status === 'present').length;
-  const absentCount = attendanceData.filter(item => item.status === 'absent').length;
-  const lateCount = attendanceData.filter(item => item.status === 'late').length;
-  const totalCount = attendanceData.length;
-
   return (
-    <View style={styles.container}>
-      {/* Date Selector */}
-      <View style={styles.dateContainer}>
-        <TouchableOpacity style={styles.dateButton}>
-          <Ionicons name="calendar-outline" size={20} color="#007AFF" />
-          <Text style={styles.dateText}>{selectedDate}</Text>
-          <Ionicons name="chevron-down" size={16} color="#007AFF" />
+    <View style={{ flex: 1, padding: 16, backgroundColor: '#f9f9f9' }}>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 12 }}>Daily Attendance</Text>
+      {assignedClass && (
+        <Text style={{ fontSize: 16, marginBottom: 8 }}>Class: {assignedClass.name} - Section {assignedClass.section}</Text>
+      )}
+      <TouchableOpacity onPress={() => setShowDatePicker(true)} style={{ marginBottom: 12 }}>
+        <Text style={{ color: '#007AFF' }}>Select Date: {date.toISOString().slice(0, 10)}</Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display="default"
+          onChange={handleDateChange}
+        />
+      )}
+      {loading ? (
+        <ActivityIndicator size="large" color="#007AFF" style={{ marginTop: 40 }} />
+      ) : error ? (
+        <Text style={{ color: 'red', marginTop: 20 }}>{error}</Text>
+      ) : (
+        <FlatList
+          data={students}
+          keyExtractor={item => item.id.toString()}
+          renderItem={renderStudent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#888', marginTop: 40 }}>No students found.</Text>}
+        />
+      )}
+      <TouchableOpacity
+        onPress={handleSubmit}
+        disabled={submitting || offline}
+        style={{ backgroundColor: submitting || offline ? '#ccc' : '#007AFF', padding: 16, borderRadius: 8, marginTop: 20 }}
+      >
+        <Text style={{ color: '#fff', textAlign: 'center', fontWeight: 'bold' }}>{submitting ? 'Submitting...' : offline ? 'Offline - Save Locally' : 'Submit Attendance'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bulkButton} onPress={handleBulkMarkAttendance}>
-          <Ionicons name="checkmark-done" size={20} color="#fff" />
-          <Text style={styles.bulkButtonText}>Bulk Mark</Text>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 32 }}>Attendance History</Text>
+      <TouchableOpacity onPress={() => fetchHistory()} style={{ marginBottom: 8 }}>
+        <Text style={{ color: '#007AFF' }}>Refresh History</Text>
         </TouchableOpacity>
+      {history.length === 0 ? (
+        <Text style={{ color: '#888', marginTop: 8 }}>No attendance records for this date.</Text>
+      ) : (
+        <FlatList
+          data={history}
+          keyExtractor={item => item.id.toString()}
+          renderItem={({ item }) => (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
+              <Text>{item.student?.user?.name}</Text>
+              <Text style={{ color: item.status === 'present' ? 'green' : 'red' }}>{item.status}</Text>
       </View>
-
-      {/* Statistics */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{presentCount}</Text>
-          <Text style={styles.statLabel}>Present</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{absentCount}</Text>
-          <Text style={styles.statLabel}>Absent</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{lateCount}</Text>
-          <Text style={styles.statLabel}>Late</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{totalCount}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search students..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCapitalize="none"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#666" />
-            </TouchableOpacity>
           )}
-        </View>
-      </View>
-
-      {/* Attendance List */}
-      <FlatList
-        data={filteredAttendance}
-        renderItem={renderAttendanceItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No attendance records found</Text>
-            <Text style={styles.emptySubtext}>
-              {searchQuery ? 'Try adjusting your search' : 'No students for this date'}
-            </Text>
-          </View>
-        }
-      />
+        />
+      )}
+      <Button title="Share Attendance" onPress={() => shareAttendance(history)} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  dateContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  dateButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    marginRight: 12,
-  },
-  dateText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginLeft: 8,
-    marginRight: 8,
-  },
-  bulkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  bulkButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  searchContainer: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    fontSize: 16,
-    color: '#333',
-  },
-  listContainer: {
-    padding: 16,
-  },
-  attendanceCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
-  },
-  studentInfo: {
-    marginBottom: 12,
-  },
-  studentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  studentName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  studentDetails: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  timeInfo: {
-    fontSize: 12,
-    color: '#999',
-  },
-  attendanceActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  presentButton: {
-    backgroundColor: '#34C759',
-  },
-  absentButton: {
-    backgroundColor: '#FF3B30',
-  },
-  lateButton: {
-    backgroundColor: '#FF9500',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-}); 

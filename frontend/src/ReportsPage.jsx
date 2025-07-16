@@ -1,304 +1,213 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import config from './config';
 
-export default function ReportsPage() {
-  // Mock exam data (replace with API call later)
-  const [exams, setExams] = useState([]);
-  const [loadingExams, setLoadingExams] = useState(true);
-  const [examError, setExamError] = useState(null);
+// Reusable API service instance
+const api = axios.create({
+  baseURL: config.api.baseURL,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+});
 
-  useEffect(() => {
-    setLoadingExams(true);
-    fetch('/api/exams')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setExams(data.data || []);
-          setExamError(null);
-        } else {
-          setExamError(data.message || 'Failed to fetch exams');
-        }
-      })
-      .catch(() => setExamError('Failed to fetch exams'))
-      .finally(() => setLoadingExams(false));
-  }, []);
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-  // State for class, exam, subject selection
+// Helper for date formatting
+const formatDate = (date) => new Date(date).toISOString().slice(0, 10);
+
+export default function AttendanceReportPage() {
+  const [reportData, setReportData] = useState(null);
   const [classes, setClasses] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedExam, setSelectedExam] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [filteredExams, setFilteredExams] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [studentsError, setStudentsError] = useState(null);
+  const [teachers, setTeachers] = useState([]);
+  const [filters, setFilters] = useState({
+    class_id: '',
+    teacher_id: '',
+    start_date: formatDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)), // Default to last 30 days
+    end_date: formatDate(new Date()),
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Fetch classes and subjects on mount
+  // Fetch initial data for filters
   useEffect(() => {
-    fetch('/api/classes')
-      .then(res => res.json())
-      .then(data => setClasses(data.data || []));
-    fetch('/api/subjects')
-      .then(res => res.json())
-      .then(data => setSubjects(data.data || []));
+    const fetchFilterData = async () => {
+      try {
+        const [classesRes, teachersRes] = await Promise.all([
+          api.get('/classes'),
+          api.get('/teachers'),
+        ]);
+        setClasses(classesRes.data.data);
+        setTeachers(teachersRes.data.data);
+      } catch (err) {
+        setError('Failed to load filter data.');
+      }
+    };
+    fetchFilterData();
   }, []);
 
-  // Filter exams by selected class
-  useEffect(() => {
-    if (selectedClass) {
-      setFilteredExams(exams.filter(e => String(e.class_id) === String(selectedClass)));
-    } else {
-      setFilteredExams([]);
-    }
-    setSelectedExam('');
-  }, [selectedClass, exams]);
-
-  // Fetch students for selected class
-  useEffect(() => {
-    if (!selectedClass) {
-      setStudents([]);
-      return;
-    }
-    setLoadingStudents(true);
-    setStudentsError(null);
-    fetch(`/api/students?class_id=${selectedClass}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.users) {
-          setStudents(data.users);
-        } else {
-          setStudentsError(data.message || 'Failed to fetch students');
-        }
-      })
-      .catch(() => setStudentsError('Failed to fetch students'))
-      .finally(() => setLoadingStudents(false));
-  }, [selectedClass]);
-
-  // Mock students and results data (replace with API call later)
-  const [results, setResults] = useState([]);
-  const [loadingResults, setLoadingResults] = useState(true);
-  const [resultsError, setResultsError] = useState(null);
-
-  useEffect(() => {
-    setLoadingResults(true);
-    fetch('/api/results')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setResults(data.data || []);
-          setResultsError(null);
-        } else {
-          setResultsError(data.message || 'Failed to fetch results');
-        }
-      })
-      .catch(() => setResultsError('Failed to fetch results'))
-      .finally(() => setLoadingResults(false));
-  }, []);
-  const [marksInput, setMarksInput] = useState({});
-  const [submitStatus, setSubmitStatus] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Handler for marks input (updated to clear status)
-  const handleMarksChange = (studentId, value) => {
-    setMarksInput(prev => ({ ...prev, [studentId]: value }));
-    setSubmitStatus(null);
+  // Handle filter change
+  const handleFilterChange = (e) => {
+    setFilters({ ...filters, [e.target.name]: e.target.value });
   };
 
-  // Handler for submitting marks to backend
-  const handleSubmitMarks = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setSubmitStatus(null);
-    let hasError = false;
-    let errorMsg = '';
-    for (const student of students) {
-      const marks = marksInput[student.id];
-      if (marks === undefined || marks === '') continue; // skip empty
-      const res = await fetch('/api/results', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_id: student.id,
-          exam_id: selectedExam,
-          subject_id: selectedSubject,
-          marks_obtained: Number(marks),
-          total_marks: 100
-        })
-      });
-      const data = await res.json();
-      if (!data.success) {
-        hasError = true;
-        errorMsg = data.message || 'Failed to submit some results.';
-        break;
+  // Generate report
+  const generateReport = async () => {
+    setLoading(true);
+    setError('');
+    setReportData(null);
+    try {
+      const { class_id, start_date, end_date } = filters;
+      if (!start_date || !end_date) {
+        setError('Please select a valid date range.');
+        setLoading(false);
+        return;
       }
+
+      // Backend does not support teacher filter, so we filter after fetching
+      const params = { class_id, start_date, end_date };
+      const res = await api.get('/attendance/report', { params }); // Assuming this maps to generateReport
+      let finalData = res.data.data;
+
+      // Client-side filter for teacher if selected
+      if (filters.teacher_id && finalData.attendance_records) {
+        finalData.attendance_records = finalData.attendance_records.filter(
+          rec => rec.student?.classModel?.head_teacher_id === Number(filters.teacher_id)
+        );
+      }
+
+      setReportData(finalData);
+    } catch (err) {
+      setError('Failed to generate report.');
+    } finally {
+      setLoading(false);
     }
-    setSubmitting(false);
-    if (hasError) {
-      setSubmitStatus({ type: 'error', message: errorMsg });
-    } else {
-      setSubmitStatus({ type: 'success', message: 'Marks submitted successfully!' });
-      setMarksInput({});
-    }
+  };
+
+  // Export to CSV (optional)
+  const exportToCSV = () => {
+    if (!reportData || !reportData.attendance_records) return;
+    const headers = ['Student', 'Date', 'Status', 'Class'];
+    const rows = reportData.attendance_records.map(rec => [
+      rec.student.user.name,
+      rec.date,
+      rec.status,
+      `${rec.student.classModel.name} - ${rec.student.classModel.section}`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', encodeURI(csvContent));
+    link.setAttribute('download', 'attendance_report.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6 text-blue-700">Exams & Results</h2>
-      {/* Exam Schedule Section */}
-      <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-2">Exam Schedule</h3>
-        <div className="bg-white border rounded shadow p-4">
-          {loadingExams ? (
-            <div className="text-gray-500">Loading exams...</div>
-          ) : examError ? (
-            <div className="text-red-600">{examError}</div>
-          ) : (
-            <div className="table-responsive">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="py-2 px-4 text-left">Exam Name</th>
-                    <th className="py-2 px-4 text-left">Class</th>
-                    <th className="py-2 px-4 text-left">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {exams.length === 0 ? (
-                    <tr><td colSpan="3" className="text-center text-gray-500 py-4">No exams scheduled.</td></tr>
-                  ) : (
-                    exams.map(exam => (
-                      <tr key={exam.id}>
-                        <td className="py-2 px-4">{exam.name}</td>
-                        <td className="py-2 px-4">{exam.class_name}</td>
-                        <td className="py-2 px-4">{exam.date}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+    <div className="p-4 md:p-8">
+      <h1 className="text-3xl font-bold mb-6">Attendance Report</h1>
+
+      {/* Filters */}
+      <div className="bg-white p-6 rounded-lg shadow-md mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Class</label>
+          <select name="class_id" value={filters.class_id} onChange={handleFilterChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+            <option value="">All Classes</option>
+            {classes.map(c => <option key={c.id} value={c.id}>{c.name} - {c.section}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Teacher</label>
+          <select name="teacher_id" value={filters.teacher_id} onChange={handleFilterChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+            <option value="">All Teachers</option>
+            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Start Date</label>
+          <input type="date" name="start_date" value={filters.start_date} onChange={handleFilterChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">End Date</label>
+          <input type="date" name="end_date" value={filters.end_date} onChange={handleFilterChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
             </div>
-          )}
+        <div className="col-span-full flex justify-end">
+          <button onClick={generateReport} disabled={loading} className="px-6 py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400">
+            {loading ? 'Generating...' : 'Generate Report'}
+          </button>
         </div>
       </div>
-      {/* Enter Results Section */}
-      <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-2">Enter Results</h3>
-        <div className="bg-white border rounded shadow p-4">
-          {/* Selection controls */}
-          <div className="flex flex-wrap gap-4 mb-4">
-            <div>
-              <label className="block mb-1 font-medium">Class</label>
-              <select className="border rounded px-2 py-1" value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
-                <option value="">Select class</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+
+      {error && <div className="bg-red-100 text-red-700 p-4 rounded mb-6">{error}</div>}
+
+      {/* Report Display */}
+      {reportData && (
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Report Results</h2>
+            <button onClick={exportToCSV} className="px-4 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700">Export CSV</button>
+          </div>
+
+          {/* Statistics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-center">
+            <div className="bg-blue-100 p-4 rounded-lg">
+              <div className="text-3xl font-bold text-blue-800">{reportData.statistics.attendance_percentage}%</div>
+              <div className="text-sm text-blue-600">Overall Attendance</div>
             </div>
-            <div>
-              <label className="block mb-1 font-medium">Exam</label>
-              <select className="border rounded px-2 py-1" value={selectedExam} onChange={e => setSelectedExam(e.target.value)} disabled={!selectedClass}>
-                <option value="">Select exam</option>
-                {filteredExams.map(e => <option key={e.id} value={e.id}>{e.name} ({e.date})</option>)}
-              </select>
+            <div className="bg-green-100 p-4 rounded-lg">
+              <div className="text-3xl font-bold text-green-800">{reportData.statistics.present_days}</div>
+              <div className="text-sm text-green-600">Present Days</div>
             </div>
-            <div>
-              <label className="block mb-1 font-medium">Subject</label>
-              <select className="border rounded px-2 py-1" value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}>
-                <option value="">Select subject</option>
-                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+            <div className="bg-red-100 p-4 rounded-lg">
+              <div className="text-3xl font-bold text-red-800">{reportData.statistics.absent_days}</div>
+              <div className="text-sm text-red-600">Absent Days</div>
+            </div>
+            <div className="bg-yellow-100 p-4 rounded-lg">
+              <div className="text-3xl font-bold text-yellow-800">{reportData.statistics.late_days}</div>
+              <div className="text-sm text-yellow-600">Late Days</div>
             </div>
           </div>
-          {/* Students table for marks entry */}
-          {loadingStudents ? (
-            <div className="text-gray-500">Loading students...</div>
-          ) : studentsError ? (
-            <div className="text-red-600">{studentsError}</div>
-          ) : !selectedClass || !selectedExam || !selectedSubject ? (
-            <div className="text-gray-500">Select class, exam, and subject to enter marks.</div>
-          ) : students.length === 0 ? (
-            <div className="text-gray-500">No students found for this class.</div>
-          ) : (
-            <form onSubmit={handleSubmitMarks}>
-              <div className="table-responsive">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="py-2 px-4 text-left">Roll No.</th>
-                      <th className="py-2 px-4 text-left">Student Name</th>
-                      <th className="py-2 px-4 text-left">Marks</th>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {students.map(student => (
-                      <tr key={student.id}>
-                        <td className="py-2 px-4">{student.roll_number}</td>
-                        <td className="py-2 px-4">{student.name}</td>
-                        <td className="py-2 px-4">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            className="border rounded px-2 py-1 w-20"
-                            value={marksInput[student.id] || ''}
-                            onChange={e => handleMarksChange(student.id, e.target.value)}
-                            disabled={submitting}
-                          />
+              <tbody className="bg-white divide-y divide-gray-200">
+                {reportData.attendance_records.map(rec => (
+                  <tr key={rec.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{rec.student?.user?.name || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{rec.date}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        rec.status === 'present' ? 'bg-green-100 text-green-800' : 
+                        rec.status === 'absent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {rec.status}
+                      </span>
                         </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{rec.student?.classModel?.name || 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <button type="submit" className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 button-touch" disabled={submitting}>
-                {submitting ? 'Submitting...' : 'Submit Marks'}
-              </button>
-              {submitStatus && (
-                <div className={`mt-4 ${submitStatus.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{submitStatus.message}</div>
-              )}
-            </form>
-          )}
-        </div>
-      </div>
-      {/* View Results Section */}
-      <div>
-        <h3 className="text-lg font-semibold mb-2">View Results</h3>
-        <div className="bg-white border rounded shadow p-4">
-          {loadingResults ? (
-            <div className="text-gray-500">Loading results...</div>
-          ) : resultsError ? (
-            <div className="text-red-600">{resultsError}</div>
-          ) : (
-            <div className="table-responsive">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="py-2 px-4 text-left">Student Name</th>
-                    <th className="py-2 px-4 text-left">Exam</th>
-                    <th className="py-2 px-4 text-left">Subject</th>
-                    <th className="py-2 px-4 text-left">Marks</th>
-                    <th className="py-2 px-4 text-left">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.length === 0 ? (
-                    <tr><td colSpan="5" className="text-center text-gray-500 py-4">No results found.</td></tr>
-                  ) : (
-                    results.map(result => (
-                      <tr key={result.id}>
-                        <td className="py-2 px-4">{result.student_name}</td>
-                        <td className="py-2 px-4">{result.exam_name}</td>
-                        <td className="py-2 px-4">{result.subject_name}</td>
-                        <td className="py-2 px-4">{result.marks_obtained}</td>
-                        <td className="py-2 px-4">{result.total_marks}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
             </div>
           )}
-        </div>
-      </div>
     </div>
   );
 } 

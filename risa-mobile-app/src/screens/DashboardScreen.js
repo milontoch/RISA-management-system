@@ -14,6 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardScreen({ navigation }) {
   const [dashboardData, setDashboardData] = useState(null);
@@ -23,6 +25,106 @@ export default function DashboardScreen({ navigation }) {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [isHeadTeacher, setIsHeadTeacher] = useState(false);
+
+  // Get user and role from context or AsyncStorage
+  useEffect(() => {
+    const getRole = async () => {
+      try {
+        let role = null;
+        let userObj = null;
+        if (typeof useAuth === 'function') {
+          const auth = useAuth();
+          userObj = auth.user;
+          role = userObj?.role;
+        }
+        if (!role) {
+          const userData = await AsyncStorage.getItem('user');
+          userObj = userData ? JSON.parse(userData) : null;
+          role = userObj?.role;
+        }
+        setUser(userObj);
+        setUserRole(role);
+        setIsHeadTeacher(!!userObj?.is_head_teacher);
+      } catch (e) {
+        setUser(null);
+        setUserRole(null);
+        setIsHeadTeacher(false);
+      }
+    };
+    getRole();
+  }, []);
+
+  // Compute dashboard title
+  const getDashboardTitle = () => {
+    if (userRole === 'admin') return 'School Control Center';
+    if (userRole === 'teacher' && isHeadTeacher) return 'Attendance & Leadership';
+    if (userRole === 'teacher') return 'Teaching Hub';
+    return 'Dashboard';
+  };
+
+  // Role-based navigation section
+  const renderRoleNav = () => {
+    if (!userRole) return null;
+    if (userRole === 'admin') {
+      return (
+        <View className="mb-4">
+          <Text style={styles.roleNavTitle}>Admin Quick Links</Text>
+          <View style={styles.roleNavRow}>
+            <TouchableOpacity style={styles.roleNavBtn} onPress={() => navigation.navigate('TeachersScreen')}>
+              <Ionicons name="people" size={24} color="#007AFF" />
+              <Text style={styles.roleNavBtnText}>Manage Teachers</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.roleNavBtn} onPress={() => navigation.navigate('StudentsScreen')}>
+              <Ionicons name="school" size={24} color="#007AFF" />
+              <Text style={styles.roleNavBtnText}>Manage Students</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.roleNavBtn} onPress={() => navigation.navigate('AttendanceScreen')}>
+              <Ionicons name="calendar" size={24} color="#007AFF" />
+              <Text style={styles.roleNavBtnText}>Attendance</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+    if (userRole === 'teacher') {
+      return (
+        <View className="mb-4">
+          <Text style={styles.roleNavTitle}>Teacher Quick Links</Text>
+          <View style={styles.roleNavRow}>
+            <TouchableOpacity style={styles.roleNavBtn} onPress={() => navigation.navigate('AttendanceScreen')}>
+              <Ionicons name="calendar" size={24} color="#007AFF" />
+              <Text style={styles.roleNavBtnText}>Take Attendance</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.roleNavBtn} onPress={() => navigation.navigate('StudentsScreen')}>
+              <Ionicons name="school" size={24} color="#007AFF" />
+              <Text style={styles.roleNavBtnText}>My Students</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+    if (userRole === 'student') {
+      return (
+        <View className="mb-4">
+          <Text style={styles.roleNavTitle}>Student Quick Links</Text>
+          <View style={styles.roleNavRow}>
+            <TouchableOpacity style={styles.roleNavBtn} onPress={() => navigation.navigate('AttendanceScreen')}>
+              <Ionicons name="calendar" size={24} color="#007AFF" />
+              <Text style={styles.roleNavBtnText}>My Attendance</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.roleNavBtn} onPress={() => navigation.navigate('TeachersScreen')}>
+              <Ionicons name="people" size={24} color="#007AFF" />
+              <Text style={styles.roleNavBtnText}>My Teachers</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+    return null;
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -193,6 +295,56 @@ export default function DashboardScreen({ navigation }) {
     </TouchableOpacity>
   );
 
+  // Optional: Upcoming Events section (mock)
+  function UpcomingEvents() {
+    const [events, setEvents] = useState([]);
+    useEffect(() => {
+      setTimeout(() => {
+        setEvents([
+          { id: 1, title: "Math Exam", date: "2024-08-01" },
+          { id: 2, title: "Science Fair", date: "2024-08-05" },
+          { id: 3, title: "Holiday: Independence Day", date: "2024-08-10" },
+        ]);
+      }, 500);
+    }, []);
+    return (
+      <View style={{ backgroundColor: "#fff", borderRadius: 8, padding: 16, marginVertical: 12 }}>
+        <Text style={{ fontWeight: "bold", marginBottom: 6 }}>Upcoming Events</Text>
+        {events.length === 0 ? (
+          <Text>Loading...</Text>
+        ) : (
+          events.map(e => (
+            <Text key={e.id} style={{ marginBottom: 2 }}>
+              <Text style={{ fontWeight: "500" }}>{e.title}</Text> <Text style={{ color: "#888" }}>({e.date})</Text>
+            </Text>
+          ))
+        )}
+        {/* Replace with real API later */}
+      </View>
+    );
+  }
+
+  // Optional: In-app Notifications (mock)
+  function NotificationsBanner() {
+    const [show, setShow] = useState(true);
+    // Mock notifications
+    const notifications = [
+      { id: 1, message: "Result uploaded" },
+      { id: 2, message: "Attendance low this month" },
+    ];
+    if (!show || notifications.length === 0) return null;
+    return (
+      <TouchableOpacity onPress={() => setShow(false)}>
+        <View style={{ backgroundColor: "#5C4F6E", padding: 10, borderRadius: 6, marginBottom: 10 }}>
+          {notifications.map(n => (
+            <Text key={n.id} style={{ color: "#fff", fontSize: 14 }}>{n.message}</Text>
+          ))}
+          {/* Replace with real notifications later */}
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -209,10 +361,12 @@ export default function DashboardScreen({ navigation }) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
+      {renderRoleNav()}
+      <NotificationsBanner />
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View>
-            <Text style={styles.headerTitle}>Dashboard</Text>
+            <Text style={styles.headerTitle}>{getDashboardTitle()}</Text>
             <Text style={styles.headerSubtitle}>
               Welcome to RISA Management System
             </Text>
@@ -853,5 +1007,34 @@ const styles = StyleSheet.create({
   },
   notificationPreviewClear: {
     padding: 4,
+  },
+  // Role-based navigation styles
+  roleNavTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  roleNavRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+  },
+  roleNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f8ff',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    marginVertical: 5,
+    width: '45%', // Adjust as needed
+    alignItems: 'center',
+  },
+  roleNavBtnText: {
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
   },
 }); 

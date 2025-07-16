@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Share,
+  Button,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
@@ -32,6 +34,15 @@ export default function ResultsScreen({ navigation }) {
       setIsLoading(false);
     }
   };
+
+  // Optional: Share results as CSV/text
+  function shareResults(results) {
+    if (!results || !results.length) return;
+    const header = "Subject,Term,Score,Grade,Remark";
+    const rows = results.map(r => [r.subject?.name || r.subject, r.term, r.score, r.grade, r.remark || ""].join(","));
+    const csv = [header, ...rows].join("\n");
+    Share.share({ message: csv });
+  }
 
   const renderResult = ({ item }) => (
     <TouchableOpacity style={styles.resultCard}>
@@ -64,6 +75,7 @@ export default function ResultsScreen({ navigation }) {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       />
+      <Button title="Share Results" onPress={() => shareResults(results)} />
     </View>
   );
 }

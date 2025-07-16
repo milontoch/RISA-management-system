@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from './auth';
+import ExportButtons from "./components/ExportButtons";
 
 export default function ResultsPage() {
   const { user } = useAuth();
@@ -101,7 +102,8 @@ export default function ResultsPage() {
           <div className="text-red-600">{error}</div>
         ) : (
           <div className="table-responsive">
-            <table className="min-w-full text-sm">
+            <ExportButtons tableId="results-table" filename="results.csv" />
+            <table id="results-table" className="min-w-full text-sm">
               <thead>
                 <tr className="bg-gray-100">
                   <th className="py-2 px-4 text-left">Student</th>

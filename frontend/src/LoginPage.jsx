@@ -24,7 +24,16 @@ export default function LoginPage() {
         apiService.setToken(data.data.token);
         // Login with user data and token
         login(data.data.user, data.data.token);
-        navigate('/dashboard');
+        // Redirect based on role
+        const role = data.data.user.role;
+        if (role === 'admin') {
+          navigate('/dashboard/admin');
+        } else if (role === 'teacher') {
+          navigate('/dashboard/teacher');
+        } else {
+          setError('Unauthorized role');
+          return;
+        }
       } else {
         setError(data.message || 'Login failed');
       }

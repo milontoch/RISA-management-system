@@ -87,6 +87,14 @@ Route::prefix('v1')->group(function () {
         // Fees management
         Route::apiResource('fees', FeeController::class);
 
+        // Academic year management
+        Route::get('/academic-years', [App\Http\Controllers\AcademicYearController::class, 'index']);
+        Route::post('/academic-years', [App\Http\Controllers\AcademicYearController::class, 'store']);
+        Route::get('/academic-years/{id}', [App\Http\Controllers\AcademicYearController::class, 'show']);
+        Route::put('/academic-years/{id}', [App\Http\Controllers\AcademicYearController::class, 'update']);
+        Route::post('/academic-years/{id}/toggle-active', [App\Http\Controllers\AcademicYearController::class, 'toggleActive']);
+        Route::get('/academic-years/active', [App\Http\Controllers\AcademicYearController::class, 'getActiveYear']);
+
         // Student promotion and inactivity
         Route::post('/students/promote', [StudentController::class, 'promoteStudents'])->middleware('role:admin');
         Route::post('/students/check-inactivity', [StudentController::class, 'checkInactivity'])->middleware('role:admin');

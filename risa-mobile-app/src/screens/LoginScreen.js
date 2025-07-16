@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen({ navigation, onLogin }) {
   const { login } = useAuth();
@@ -32,6 +33,16 @@ export default function LoginScreen({ navigation, onLogin }) {
     try {
       // Use the login function from AuthContext
       await login(email, password);
+      // Get user from AsyncStorage
+      const userData = await AsyncStorage.getItem('user');
+      const user = userData ? JSON.parse(userData) : null;
+      if (user && user.role === 'admin') {
+        navigation.reset({ index: 0, routes: [{ name: 'DashboardScreen' }] });
+      } else if (user && user.role === 'teacher') {
+        navigation.reset({ index: 0, routes: [{ name: 'TeacherDashboardScreen' }] });
+      } else {
+        Alert.alert('Unauthorized', 'Only admin and teacher logins are allowed.');
+      }
     } catch (error) {
       Alert.alert('Login Failed', error.message || 'Please check your credentials');
     } finally {
