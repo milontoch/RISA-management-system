@@ -6,7 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class AcademicYear extends Model
 {
-    protected $fillable = ['name', 'is_active'];
+    protected $fillable = [
+        'name',
+        'is_active',
+        'start_date',
+        'end_date',
+    ];
 
     public static function boot()
     {

@@ -16,8 +16,7 @@ export default function FeedbackModal({ open, onClose, student }) {
     e.preventDefault();
     setErrors({});
     setSuccess("");
-    const ok = await confirm("Submit Feedback?", "Are you sure you want to send this feedback?");
-    if (!ok) return;
+    if (!window.confirm('Are you sure you want to send this feedback?')) return;
     setLoading(true);
     try {
       await axios.post("/api/feedback", {

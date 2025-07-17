@@ -29,6 +29,7 @@ import { subscribeToApiErrors } from './services/api';
 import StudentPortal from './StudentPortal';
 import AutoLogoutProvider from "./components/AutoLogoutProvider";
 import ForbiddenPage from "./ForbiddenPage";
+import { AdminRoute, TeacherRoute, HeadTeacherRoute, StudentRoute } from './RoleRoutes';
 
 // Deployment trigger - $(date)
 

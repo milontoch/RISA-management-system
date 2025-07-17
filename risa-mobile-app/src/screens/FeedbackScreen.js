@@ -16,23 +16,31 @@ export default function FeedbackScreen({ navigation, route }) {
 
   const handleSubmit = async () => {
     setErrors({});
-    const ok = await confirm("Submit Feedback?", "Are you sure you want to send this feedback?");
-    if (!ok) return;
-    setLoading(true);
-    try {
-      await axios.post("/api/feedback", {
-        subject,
-        message,
-        email: email || undefined,
-        student_name: name || undefined,
-      });
-      Toast.show({ type: "success", text1: "Feedback sent successfully!" });
-      setSubject(""); setMessage("");
-    } catch (err) {
-      if (err.response?.status === 422) setErrors(err.response.data.errors || {});
-      else Alert.alert("Error", "An error occurred. Please try again.");
-    }
-    setLoading(false);
+    Alert.alert(
+      'Submit Feedback?',
+      'Are you sure you want to send this feedback?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Send', onPress: async () => {
+            setLoading(true);
+            try {
+              await axios.post("/api/feedback", {
+                subject,
+                message,
+                email: email || undefined,
+                student_name: name || undefined,
+              });
+              Toast.show({ type: "success", text1: "Feedback sent successfully!" });
+              setSubject(""); setMessage("");
+            } catch (err) {
+              if (err.response?.status === 422) setErrors(err.response.data.errors || {});
+              else Alert.alert("Error", "An error occurred. Please try again.");
+            }
+            setLoading(false);
+          }
+        }
+      ]
+    );
   };
 
   return (

@@ -2,80 +2,67 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\AcademicYear;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 class AcademicYearController extends Controller
 {
-    // List all academic years
+    public function __construct()
+    {
+        $this->middleware('auth:sanctum');
+        $this->middleware('admin'); // Ensure you have an 'admin' middleware
+    }
+
     public function index()
     {
-        $this->authorizeAdmin();
-        return response()->json([
-            'success' => true,
-            'data' => AcademicYear::orderByDesc('is_active')->orderByDesc('id')->get()
-        ]);
+        return AcademicYear::orderBy('start_date', 'desc')->get();
     }
 
-    // Create a new academic year
+    public function current()
+    {
+        return AcademicYear::where('is_active', true)->first();
+    }
+
     public function store(Request $request)
     {
-        $this->authorizeAdmin();
-        $request->validate([
-            'name' => 'required|string|max:20|unique:academic_years,name',
+        $validated = $request->validate([
+            'name' => 'required|string|unique:academic_years,name',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
             'is_active' => 'boolean',
         ]);
-        $year = AcademicYear::create([
-            'name' => $request->name,
-            'is_active' => $request->is_active ?? false,
-        ]);
-        return response()->json(['success' => true, 'data' => $year], 201);
-    }
 
-    // Show a single academic year
-    public function show($id)
-    {
-        $this->authorizeAdmin();
-        $year = AcademicYear::findOrFail($id);
-        return response()->json(['success' => true, 'data' => $year]);
-    }
-
-    // Update an academic year (name or is_active)
-    public function update(Request $request, $id)
-    {
-        $this->authorizeAdmin();
-        $year = AcademicYear::findOrFail($id);
-        $request->validate([
-            'name' => 'sometimes|required|string|max:20|unique:academic_years,name,' . $id,
-            'is_active' => 'boolean',
-        ]);
-        $year->update($request->only(['name', 'is_active']));
-        return response()->json(['success' => true, 'data' => $year]);
-    }
-
-    // Toggle active status (set this year as active, deactivate others)
-    public function toggleActive($id)
-    {
-        $this->authorizeAdmin();
-        $year = AcademicYear::findOrFail($id);
-        $year->update(['is_active' => true]);
-        return response()->json(['success' => true, 'data' => $year]);
-    }
-
-    // Get the current active academic year
-    public function getActiveYear()
-    {
-        $year = AcademicYear::active()->first();
-        return response()->json(['success' => true, 'data' => $year]);
-    }
-
-    // Helper: Only admin can manage
-    protected function authorizeAdmin()
-    {
-        $user = Auth::user();
-        if (!$user || $user->role !== 'admin') {
-            abort(403, 'Only admin can manage academic years.');
+        if (!empty($validated['is_active'])) {
+            AcademicYear::where('is_active', true)->update(['is_active' => false]);
         }
+
+        $year = AcademicYear::create($validated);
+
+        return response()->json($year, 201);
+    }
+
+    public function update(Request $request, AcademicYear $academicYear)
+    {
+        $validated = $request->validate([
+            'name' => 'string|unique:academic_years,name,' . $academicYear->id,
+            'start_date' => 'date',
+            'end_date' => 'date|after_or_equal:start_date',
+            'is_active' => 'boolean',
+        ]);
+
+        if (isset($validated['is_active']) && $validated['is_active']) {
+            AcademicYear::where('is_active', true)->update(['is_active' => false]);
+        }
+
+        $academicYear->update($validated);
+
+        return response()->json($academicYear);
+    }
+
+    public function activate(AcademicYear $academicYear)
+    {
+        AcademicYear::where('is_active', true)->update(['is_active' => false]);
+        $academicYear->update(['is_active' => true]);
+        return response()->json($academicYear);
     }
 }

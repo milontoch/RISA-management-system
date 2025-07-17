@@ -13,6 +13,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ResultController;
 use App\Http\Controllers\FeeController;
+use App\Http\Controllers\AcademicYearController;
 
 // API Version 1
 Route::prefix('v1')->group(function () {
@@ -88,15 +89,49 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('fees', FeeController::class);
 
         // Academic year management
-        Route::get('/academic-years', [App\Http\Controllers\AcademicYearController::class, 'index']);
-        Route::post('/academic-years', [App\Http\Controllers\AcademicYearController::class, 'store']);
-        Route::get('/academic-years/{id}', [App\Http\Controllers\AcademicYearController::class, 'show']);
-        Route::put('/academic-years/{id}', [App\Http\Controllers\AcademicYearController::class, 'update']);
-        Route::post('/academic-years/{id}/toggle-active', [App\Http\Controllers\AcademicYearController::class, 'toggleActive']);
-        Route::get('/academic-years/active', [App\Http\Controllers\AcademicYearController::class, 'getActiveYear']);
+        Route::get('/academic-years', [AcademicYearController::class, 'index']);
+        Route::post('/academic-years', [AcademicYearController::class, 'store']);
+        Route::get('/academic-years/{id}', [AcademicYearController::class, 'show']);
+        Route::put('/academic-years/{id}', [AcademicYearController::class, 'update']);
+        Route::post('/academic-years/{id}/toggle-active', [AcademicYearController::class, 'toggleActive']);
+        Route::get('/academic-years/active', [AcademicYearController::class, 'getActiveYear']);
 
         // Student promotion and inactivity
         Route::post('/students/promote', [StudentController::class, 'promoteStudents'])->middleware('role:admin');
         Route::post('/students/check-inactivity', [StudentController::class, 'checkInactivity'])->middleware('role:admin');
+    });
+
+    Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+        Route::get('/academic-years', [AcademicYearController::class, 'index']);
+        Route::get('/academic-years/current', [AcademicYearController::class, 'current']);
+        Route::post('/academic-years', [AcademicYearController::class, 'store']);
+        Route::put('/academic-years/{academicYear}', [AcademicYearController::class, 'update']);
+        Route::post('/academic-years/{academicYear}/activate', [AcademicYearController::class, 'activate']);
+    });
+
+    // Admin-only routes
+    Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+        // User, academic year, class management, etc.
+        // Route::apiResource('users', UserController::class);
+        // Route::apiResource('academic-years', AcademicYearController::class);
+        // ... other admin routes ...
+    });
+
+    // Head Teacher routes
+    Route::middleware(['auth:sanctum', 'head_teacher'])->group(function () {
+        // Attendance for their class
+        // Route::get('/attendance/my-class', [AttendanceController::class, 'myClass']);
+        // ... other head teacher routes ...
+    });
+
+    // Teacher routes
+    Route::middleware(['auth:sanctum', 'role:teacher'])->group(function () {
+        // Route::get('/attendance', [AttendanceController::class, 'index']);
+        // ... other teacher routes ...
+    });
+
+    // Student routes (optional)
+    Route::middleware(['auth:sanctum', 'role:student'])->group(function () {
+        // Student-only endpoints
     });
 }); 

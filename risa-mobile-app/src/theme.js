@@ -1,21 +1,24 @@
 // Oysterglow + Accent theme for React Native
 export const colors = {
+  accent: '#1D4ED8',
   oysterglow: {
-    bg: '#F8F4F0',
-    surface: '#DDD0C8',
-    text: '#B0A89F',
+    bg1: '#F8F4F0',
+    bg2: '#DDD0C8',
+    bg3: '#B0A89F',
   },
-  primary: '#1D4ED8',
+  button: {
+    primary: '#1D4ED8',
+    alt: '#B0A89F',
+  },
   white: '#fff',
   black: '#222',
 };
 
 export const spacing = {
-  layout: 24,
-  card: 16,
   sm: 8,
   md: 16,
   lg: 24,
+  xl: 32,
 };
 
 export const radius = {
