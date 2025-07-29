@@ -41,30 +41,7 @@ function PrivateRoute({ children }) {
   return children;
 }
 
-function AdminRoute({ children }) {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" />;
-  if (user.role !== 'admin') return <Navigate to="/forbidden" />;
-  return children;
-}
-function TeacherRoute({ children }) {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" />;
-  if (user.role !== 'teacher') return <Navigate to="/forbidden" />;
-  return children;
-}
-function HeadTeacherRoute({ children }) {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" />;
-  if (!(user.role === 'teacher' && user.is_head_teacher)) return <Navigate to="/forbidden" />;
-  return children;
-}
-function StudentRoute({ children }) {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" />;
-  if (user.role !== 'student') return <Navigate to="/forbidden" />;
-  return children;
-}
+
 
 export default function App() {
   const [navOpen, setNavOpen] = useState(false);

@@ -2,7 +2,7 @@
 import config from '../config';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+
 import axios from "axios";
 
 const errorSubscribers = [];
@@ -35,7 +35,6 @@ class ApiService {
   constructor() {
     this.baseURL = config.api.baseURL;
     this.token = null;
-    this.navigation = useNavigation();
   }
 
   setToken(token) {
@@ -82,9 +81,7 @@ class ApiService {
           if (typeof AsyncStorage !== 'undefined') {
             await AsyncStorage.multiRemove(['user', 'token']);
           }
-          if (typeof this.navigation !== 'undefined') {
-            this.navigation.reset({ index: 0, routes: [{ name: 'LoginScreen' }] });
-          }
+          // Navigation will be handled by the AuthContext
         } else if (code === 422) {
           message = response.data.message || 'Validation error.';
           Toast.show({ type: 'error', text1: message });

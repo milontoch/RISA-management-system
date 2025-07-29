@@ -322,13 +322,22 @@ export default function App() {
 
 function OfflineBanner() {
   return (
-    <>
-      <Toast ref={(ref) => Toast.setRef(ref)} />
-      <>
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', backgroundColor: '#f59e42', padding: 10, zIndex: 9999 }}>
-          <span style={{ color: 'white', textAlign: 'center', width: '100%' }}>You are offline</span>
-        </div>
-      </>
-    </>
+    <View style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: '#f59e42',
+      padding: 10,
+      zIndex: 9999,
+    }}>
+      <Text style={{
+        color: 'white',
+        textAlign: 'center',
+        width: '100%',
+      }}>
+        You are offline
+      </Text>
+    </View>
   );
 }
